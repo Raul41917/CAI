@@ -20,7 +20,7 @@ class RescueAgent(BaselineAgent):
 
         for message in receivedMessages:
             if 'Rescue' in message:
-                if message == 'Rescue alone' or message == 'Rescue':
+                if message == 'Rescue alone':
                     index_eta = 0 if willing else min(3, index_eta + 1)
                     willing = False
                     trustBeliefs[self._human_name]['willingness'] -= (etas[index_eta] * 0.1)
@@ -30,18 +30,13 @@ class RescueAgent(BaselineAgent):
                     trustBeliefs[self._human_name]['willingness'] += (etas[index_eta] + 0.1)
                     trustBeliefs[self._human_name]['competence'] -= 0.1
             elif 'Collect' in message:
-                split_message = message.split('')
-                victim_number = -1
-                try:
-                    victim_number = int(split_message[-1])
-                except ValueError:
-                    print('Invalid number')
-                if victim_number != -1:
-                    if victim_number not in picked_up_according_to_agent:
-                        picked_up_according_to_agent.add(victim_number)
-                        trustBeliefs[self._human_name]['competence'] += 0.1
-                    else:
-                        trustBeliefs[self._human_name]['willingness'] -= 0.1
+                msg_stripped = message.split()
+                message_without_room = " ".join(msg_stripped[:-1])
+                if message_without_room not in picked_up_according_to_agent:
+                    picked_up_according_to_agent.add(message_without_room)
+                    trustBeliefs[self._human_name]['competence'] += 0.1
+                else:
+                    trustBeliefs[self._human_name]['willingness'] -= 0.1
 
             trustBeliefs[self._human_name]['competence'] = np.clip(trustBeliefs[self._human_name]['competence'], -1,
                                                                        1)
