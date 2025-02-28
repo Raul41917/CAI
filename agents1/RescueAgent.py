@@ -27,7 +27,7 @@ class RescueAgent(BaselineAgent):
                 else:
                     index_eta = 0 if not willing else min(3, index_eta + 1)
                     willing = True
-                    trustBeliefs[self._human_name]['willingness'] += (etas[index_eta] + 0.1)
+                    trustBeliefs[self._human_name]['willingness'] += (etas[index_eta] * 0.1)
                     trustBeliefs[self._human_name]['competence'] -= 0.1
             elif 'Collect' in message:
                 msg_stripped = message.split()
