@@ -24,7 +24,15 @@ class SearchAgent(BaselineAgent):
 
         latest_search_room = -1
 
+        print("rooms: ", self._searched_rooms)
+        print("tick: ", self._tick)
+        print("send msg: ", self._send_messages)
+        print("victims: ", self._found_victims)
+        print("ans: ", self._answered)
+        print("collected: ", self._collected_victims)
+        print("loc: ", self._agent_loc)
         for message in receivedMessages:
+            print("msg: ", message)
             if 'Search' in message:
                 area_to_search = int(message.split()[-1])
                 latest_search_room = area_to_search

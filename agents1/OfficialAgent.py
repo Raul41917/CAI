@@ -150,11 +150,17 @@ class BaselineAgent(ArtificialBrain):
         # Send the hidden score message for displaying and logging the score during the task, DO NOT REMOVE THIS
         self._send_message('Our score is ' + str(state['rescuebot']['score']) + '.', 'RescueBot')
 
-        trust_competence_prob = (trustBeliefs[self._human_name]['competence'] + 1) * 0.5
-        trust_willingness_prob = (trustBeliefs[self._human_name]['willingness'] + 1) * 0.5
+        rescue_trust_competence_prob = (trustBeliefs[self._human_name]['rescue']['competence'] + 1) * 0.5
+        rescue_trust_willingness_prob = (trustBeliefs[self._human_name]['rescue']['willingness'] + 1) * 0.5
 
-        robot_trust_for_competence = np.random.rand() < trust_competence_prob
-        robot_trust_for_willingness = np.random.rand() < trust_willingness_prob
+        search_trust_competence_prob = (trustBeliefs[self._human_name]['search']['competence'] + 1) * 0.5
+        search_trust_willingness_prob = (trustBeliefs[self._human_name]['search']['willingness'] + 1) * 0.5
+
+        rescue_robot_trust_for_competence = np.random.rand() < rescue_trust_competence_prob
+        resscue_robot_trust_for_willingness = np.random.rand() < rescue_trust_willingness_prob
+
+        search_robot_trust_for_competence = np.random.rand() < search_trust_competence_prob
+        search_robot_trust_for_willingness = np.random.rand() < search_trust_willingness_prob
 
         # Ongoing loop until the task is terminated, using different phases for defining the agent's behavior
         while True:
@@ -228,7 +234,7 @@ class BaselineAgent(ArtificialBrain):
                             self._rescue = 'together'
                         # Rescue alone if the victim is mildly injured and the human not weak (++ and human is not willing)
                         if 'mild' in vic and self._condition != 'weak':
-                            if not robot_trust_for_willingness:
+                            if not rescue_robot_trust_for_willingness:
                                 self._rescue = 'alone'
                             else:
                                 self._rescue = 'together'
@@ -721,7 +727,7 @@ class BaselineAgent(ArtificialBrain):
 
             if Phase.FOLLOW_PATH_TO_VICTIM == self._phase:
                 # Start searching for other victims if the human already rescued the target victim
-                if robot_trust_for_willingness and self._goal_vic and self._goal_vic in self._collected_victims:
+                if search_robot_trust_for_willingness and self._goal_vic and self._goal_vic in self._collected_victims:
                     self._phase = Phase.FIND_NEXT_GOAL
                 else:
                     self._state_tracker.update(state)
@@ -757,7 +763,7 @@ class BaselineAgent(ArtificialBrain):
                         'class_inheritance'] and 'mild' in info['obj_id'] and info['location'] in self._roomtiles:
                         objects.append(info)
                         # Remain idle when the human has not arrived at the location (++ and the willingness of the human is high)
-                        if not self._human_name in info['name'] and robot_trust_for_willingness:
+                        if not self._human_name in info['name'] and search_robot_trust_for_willingness:
                             self._waiting = True
                             self._moving = False
                             return None, {}
@@ -934,6 +940,7 @@ class BaselineAgent(ArtificialBrain):
         trustBeliefs = {}
         # Set a default starting trust value
         default = 0.5
+        default_action = 'search'
         trustfile_header = []
         trustfile_contents = []
         # Check if agent already collaborated with this human before, if yes: load the corresponding trust values, if no: initialize using default trust values
@@ -944,41 +951,133 @@ class BaselineAgent(ArtificialBrain):
                     trustfile_header = row
                     continue
                 # Retrieve trust values 
-                if row and row[0] == self._human_name:
+                if row:
                     name = row[0]
+                    action = row[3]
                     competence = float(row[1])
                     willingness = float(row[2])
-                    trustBeliefs[name] = {'competence': competence, 'willingness': willingness}
-                # Initialize default trust values
-                if row and row[0] != self._human_name:
-                    competence = default
-                    willingness = default
-                    trustBeliefs[self._human_name] = {'competence': competence, 'willingness': willingness}
+                    
+                    if name not in trustBeliefs:
+                        trustBeliefs[name] = {}
+                    
+                    trustBeliefs[name][action] = {'competence': competence, 'willingness': willingness}
+        
+        # Ensure the current human has a trust entry for each action
+        if self._human_name not in trustBeliefs:
+            trustBeliefs[self._human_name] = {}
+        
+        known_actions = {'rescue','search'}
+        for action in known_actions:
+            if action not in trustBeliefs[self._human_name]:
+                trustBeliefs[self._human_name][action] = {'competence': default, 'willingness': default}
         return trustBeliefs
 
     def _trustBelief(self, members, trustBeliefs, folder, receivedMessages):
         '''
         Baseline implementation of a trust belief. Creates a dictionary with trust belief scores for each team member, for example based on the received messages.
         '''
-        # Update the trust value based on for example the received messages
+        etas = [0.5, 0.70, 0.9, 1]
+        index_eta = 0
+        willing = False
+
+        search_set = set()
+        help_remove = set()
+        victims = set()
+
+        latest_search_room = -1
+
+        picked_up_according_to_agent = set()
+        search = 'search'
+        rescue = 'rescue'
         for message in receivedMessages:
-            # Increase agent trust in a team member that rescued a victim
-            if 'Collect' in message:
-                trustBeliefs[self._human_name]['competence'] += 0.10
-                # Restrict the competence belief to a range of -1 to 1
-                trustBeliefs[self._human_name]['competence'] = np.clip(trustBeliefs[self._human_name]['competence'], -1,
+            if 'Rescue' in message:
+                if message == 'Rescue alone':
+                    index_eta = 0 if willing else min(3, index_eta + 1)
+                    willing = False
+                    trustBeliefs[self._human_name][rescue]['willingness'] -= (etas[index_eta] * 0.1)
+                else:
+                    index_eta = 0 if not willing else min(3, index_eta + 1)
+                    willing = True
+                    trustBeliefs[self._human_name][rescue]['willingness'] += (etas[index_eta] * 0.1)
+                    trustBeliefs[self._human_name][rescue]['competence'] -= 0.1
+            elif 'Collect' in message:
+                msg_stripped = message.split()
+                message_without_room = " ".join(msg_stripped[:-1])
+                if message_without_room not in picked_up_according_to_agent:
+                    picked_up_according_to_agent.add(message_without_room)
+                    trustBeliefs[self._human_name][rescue]['competence']+= 0.1
+                else:
+                    trustBeliefs[self._human_name][rescue]['willingness']-= 0.1
+            elif 'Search' in message:
+                area_to_search = int(message.split()[-1])
+                latest_search_room = area_to_search
+                if area_to_search in search_set:
+                    trustBeliefs[self._human_name][search]['willingness'] -= 0.2
+                    trustBeliefs[self._human_name][search]['competency'] -= 0.1
+                else:
+                    search_set.add(area_to_search)
+                    trustBeliefs[self._human_name][search]['willingness'] += 0.1
+
+            elif 'Remove' in message:
+                  area_to_remove = int(message.split()[-1])
+                  if area_to_remove in search_set:
+                      if area_to_remove not in help_remove:
+                          help_remove.add(area_to_remove)
+                          trustBeliefs[self._human_name][search]['willingness'] += 0.1
+                          trustBeliefs[self._human_name][search]['competency'] -= 0.1
+                      else:
+                          trustBeliefs[self._human_name][search]['willingness'] -= etas[index_eta_remove] * 0.1
+                          index_eta_remove = min(3, index_eta_remove + 1)
+                  else:
+                      trustBeliefs[self._human_name][search]['willingness'] -= 0.1
+
+            elif 'Found' in message:
+                broken_message = message.split()
+                victim = " ".join(broken_message[1: -2])
+                area_of_found_victim = broken_message[-1]
+
+                if victim not in victims:
+                    trustBeliefs[self._human_name][search]['competency'] += 0.1
+                else:
+                    trustBeliefs[self._human_name][search]['willingness'] -= etas[index_eta_search]
+                    index_eta_search = min(3, index_eta_search + 1)
+
+                if area_of_found_victim not in search_set:
+                    trustBeliefs[self._human_name][search]['willingness'] -= etas[index_eta_search] * 0.1
+                    index_eta_search = min(3, index_eta_search + 1)
+                elif latest_search_room == area_of_found_victim:
+                    trustBeliefs[self._human_name][search]['willingness'] += 0.1
+
+
+        trustBeliefs[self._human_name][rescue]['competence'] = np.clip(trustBeliefs[self._human_name][rescue]['competence'], -1,
+                                                                    1)
+        trustBeliefs[self._human_name][rescue]['willingness'] = np.clip(trustBeliefs[self._human_name][rescue]['willingness'], -1,
+                                                                    1)
+        trustBeliefs[self._human_name][search]['competence'] = np.clip(trustBeliefs[self._human_name][search]['competence'], -1,
+                                                                       1)
+        trustBeliefs[self._human_name][search]['willingness'] = np.clip(trustBeliefs[self._human_name][search]['willingness'], -1,
                                                                        1)
 
-        robot_sent_messages = filter(lambda x: "Moving" in x and "to pick up" in x, self._send_messages)
 
-        # Save current trust belief values so we can later use and retrieve them to add to a csv file with all the logged trust belief values
-        with open(folder + '/beliefs/currentTrustBelief.csv', mode='w') as csv_file:
+        robot_victim_help_sent_messages = []
+        for msg in self._send_messages:
+            if "Moving" in msg and "to pick up" in msg:
+                robot_victim_help_sent_messages.append(msg)
+
+        # If robot came to help in picking up all victims, assume weak human
+        if len(robot_victim_help_sent_messages) == 8:
+            trustBeliefs[self._human_name][rescue]['competence'] -= 0.5
+
+        with open(folder + '/beliefs/currentTrustBelief.csv', mode='w', newline='') as csv_file:
             csv_writer = csv.writer(csv_file, delimiter=';', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-            csv_writer.writerow(['name', 'competence', 'willingness'])
-            csv_writer.writerow([self._human_name, trustBeliefs[self._human_name]['competence'],
-                                 trustBeliefs[self._human_name]['willingness']])
+            csv_writer.writerow(['name', 'competence', 'willingness', 'action'])
+            csv_writer.writerow([self._human_name, trustBeliefs[self._human_name][search]['competence'],
+                                 trustBeliefs[self._human_name][search]['willingness'],search])
+            csv_writer.writerow([self._human_name, trustBeliefs[self._human_name][rescue]['competence'],
+                                 trustBeliefs[self._human_name][rescue]['willingness'],rescue])
 
         return trustBeliefs
+
 
     def _send_message(self, mssg, sender):
         '''

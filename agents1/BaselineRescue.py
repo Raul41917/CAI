@@ -14,7 +14,6 @@ class NEVER_TRUST(BaselineAgent):
         trustBeliefs[self._human_name]['competence'] = -1
         trustBeliefs[self._human_name]['willingness'] = -1
 
-
         with open(folder + '/beliefs/currentTrustBelief.csv', mode='w') as csv_file:
             csv_writer = csv.writer(csv_file, delimiter=';', quotechar='"', quoting=csv.QUOTE_MINIMAL)
             csv_writer.writerow(['name', 'competence', 'willingness'])
