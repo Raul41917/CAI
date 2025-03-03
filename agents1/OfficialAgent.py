@@ -84,6 +84,15 @@ class BaselineAgent(ArtificialBrain):
         # Filtering of the world state before deciding on an action 
         return state
 
+    def human_allegedly_found_the_victim(self, received_messages, victim):
+        for msg in received_messages:
+            if "Found" in msg:
+                split_msg = msg.split()
+                victim_in_msg = " ".join(split_msg[1:-2])
+                if victim == victim_in_msg:
+                    return split_msg[-1]
+        return -1
+
     def decide_on_actions(self, state):
         # Identify team members
         agent_name = state[self.agent_id]['obj_id']
@@ -141,6 +150,12 @@ class BaselineAgent(ArtificialBrain):
         # Send the hidden score message for displaying and logging the score during the task, DO NOT REMOVE THIS
         self._send_message('Our score is ' + str(state['rescuebot']['score']) + '.', 'RescueBot')
 
+        trust_competence_prob = (trustBeliefs[self._human_name]['competence'] + 1) * 0.5
+        trust_willingness_prob = (trustBeliefs[self._human_name]['willingness'] + 1) * 0.5
+
+        robot_trust_for_competence = np.random.rand() < trust_competence_prob
+        robot_trust_for_willingness = np.random.rand() < trust_willingness_prob
+
         # Ongoing loop until the task is terminated, using different phases for defining the agent's behavior
         while True:
             if Phase.INTRO == self._phase:
@@ -171,6 +186,7 @@ class BaselineAgent(ArtificialBrain):
                 for info in zones:
                     if str(info['img_name'])[8:-4] not in self._collected_victims:
                         remaining_zones.append(info)
+                        print(str(info['img_name'])[8:-4])
                         remaining_vics.append(str(info['img_name'])[8:-4])
                         remaining[str(info['img_name'])[8:-4]] = info['location']
                 if remaining_zones:
@@ -197,6 +213,10 @@ class BaselineAgent(ArtificialBrain):
                             return Idle.__name__, {'duration_in_ticks': 25}
                         # Plan path to area because the exact victim location is not known, only the area (i.e., human found this  victim)
                         if 'location' not in self._found_victim_logs[vic].keys():
+                            # if trust_willingness_prob:
+                            #     room = self.human_allegedly_found_the_victim(self.received_messages, vic)
+                            #     if room != -1:
+                            #         self._found_victim_logs[vic]['location'] = room
                             self._phase = Phase.PLAN_PATH_TO_ROOM
                             return Idle.__name__, {'duration_in_ticks': 25}
                     # Define a previously found victim as target victim
@@ -206,9 +226,12 @@ class BaselineAgent(ArtificialBrain):
                         # Rescue together when victim is critical or when the human is weak and the victim is mildly injured
                         if 'critical' in vic or 'mild' in vic and self._condition == 'weak':
                             self._rescue = 'together'
-                        # Rescue alone if the victim is mildly injured and the human not weak
+                        # Rescue alone if the victim is mildly injured and the human not weak (++ and human is not willing)
                         if 'mild' in vic and self._condition != 'weak':
-                            self._rescue = 'alone'
+                            if not robot_trust_for_willingness:
+                                self._rescue = 'alone'
+                            else:
+                                self._rescue = 'together'
                         # Plan path to victim because the exact location is known (i.e., the agent found this victim)
                         if 'location' in self._found_victim_logs[vic].keys():
                             self._phase = Phase.PLAN_PATH_TO_VICTIM
@@ -698,10 +721,8 @@ class BaselineAgent(ArtificialBrain):
 
             if Phase.FOLLOW_PATH_TO_VICTIM == self._phase:
                 # Start searching for other victims if the human already rescued the target victim
-                if self._goal_vic and self._goal_vic in self._collected_victims:
+                if robot_trust_for_willingness and self._goal_vic and self._goal_vic in self._collected_victims:
                     self._phase = Phase.FIND_NEXT_GOAL
-
-                # Move towards the location of the found victim
                 else:
                     self._state_tracker.update(state)
 
@@ -735,8 +756,8 @@ class BaselineAgent(ArtificialBrain):
                         self._searched_rooms) == 0 and 'class_inheritance' in info and 'CollectableBlock' in info[
                         'class_inheritance'] and 'mild' in info['obj_id'] and info['location'] in self._roomtiles:
                         objects.append(info)
-                        # Remain idle when the human has not arrived at the location
-                        if not self._human_name in info['name']:
+                        # Remain idle when the human has not arrived at the location (++ and the willingness of the human is high)
+                        if not self._human_name in info['name'] and robot_trust_for_willingness:
                             self._waiting = True
                             self._moving = False
                             return None, {}
@@ -809,6 +830,7 @@ class BaselineAgent(ArtificialBrain):
         '''
 
         receivedMessages = {}
+
         # Create a dictionary with a list of received messages from each team member
         for member in teamMembers:
             receivedMessages[member] = []
@@ -946,6 +968,9 @@ class BaselineAgent(ArtificialBrain):
                 # Restrict the competence belief to a range of -1 to 1
                 trustBeliefs[self._human_name]['competence'] = np.clip(trustBeliefs[self._human_name]['competence'], -1,
                                                                        1)
+
+        robot_sent_messages = filter(lambda x: "Moving" in x and "to pick up" in x, self._send_messages)
+
         # Save current trust belief values so we can later use and retrieve them to add to a csv file with all the logged trust belief values
         with open(folder + '/beliefs/currentTrustBelief.csv', mode='w') as csv_file:
             csv_writer = csv.writer(csv_file, delimiter=';', quotechar='"', quoting=csv.QUOTE_MINIMAL)
