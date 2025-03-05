@@ -156,11 +156,17 @@ class BaselineAgent(ArtificialBrain):
         search_trust_competence_prob = (trustBeliefs[self._human_name]['search']['competence'] + 1) * 0.5
         search_trust_willingness_prob = (trustBeliefs[self._human_name]['search']['willingness'] + 1) * 0.5
 
+        remove_trust_competence_prob = (trustBeliefs[self._human_name]['remove']['competence'] + 1) * 0.5
+        remove_trust_willingness_prob = (trustBeliefs[self._human_name]['remove']['willingness'] + 1) * 0.5
+
         rescue_robot_trust_for_competence = np.random.rand() < rescue_trust_competence_prob
         resscue_robot_trust_for_willingness = np.random.rand() < rescue_trust_willingness_prob
 
         search_robot_trust_for_competence = np.random.rand() < search_trust_competence_prob
         search_robot_trust_for_willingness = np.random.rand() < search_trust_willingness_prob
+
+        remove_robot_trust_for_competence = np.random.rand() < remove_trust_competence_prob
+        remove_robot_trust_for_willingness = np.random.rand() < remove_trust_willingness_prob
 
         # Ongoing loop until the task is terminated, using different phases for defining the agent's behavior
         while True:
@@ -767,6 +773,10 @@ class BaselineAgent(ArtificialBrain):
                             self._waiting = True
                             self._moving = False
                             return None, {}
+                        elif not search_robot_trust_for_willingness:
+                            self.waiting = False
+                            self.moving = True 
+                            return None, {}
                 # Add the victim to the list of rescued victims when it has been picked up
                 if len(objects) == 0 and 'critical' in self._goal_vic or len(
                         objects) == 0 and 'mild' in self._goal_vic and self._rescue == 'together':
@@ -966,7 +976,7 @@ class BaselineAgent(ArtificialBrain):
         if self._human_name not in trustBeliefs:
             trustBeliefs[self._human_name] = {}
         
-        known_actions = {'rescue','search'}
+        known_actions = {'rescue','search','remove'}
         for action in known_actions:
             if action not in trustBeliefs[self._human_name]:
                 trustBeliefs[self._human_name][action] = {'competence': default, 'willingness': default}
@@ -978,6 +988,8 @@ class BaselineAgent(ArtificialBrain):
         '''
         etas = [0.5, 0.70, 0.9, 1]
         index_eta = 0
+        index_eta_remove = 0
+        index_eta_search = 0
         willing = False
 
         search_set = set()
@@ -989,6 +1001,8 @@ class BaselineAgent(ArtificialBrain):
         picked_up_according_to_agent = set()
         search = 'search'
         rescue = 'rescue'
+        remove = 'remove'
+
         for message in receivedMessages:
             if 'Rescue' in message:
                 if message == 'Rescue alone':
@@ -999,7 +1013,7 @@ class BaselineAgent(ArtificialBrain):
                     index_eta = 0 if not willing else min(3, index_eta + 1)
                     willing = True
                     trustBeliefs[self._human_name][rescue]['willingness'] += (etas[index_eta] * 0.1)
-                    trustBeliefs[self._human_name][rescue]['competence'] -= 0.1
+                    #trustBeliefs[self._human_name][rescue]['competence'] -= 0.1
             elif 'Collect' in message:
                 msg_stripped = message.split()
                 message_without_room = " ".join(msg_stripped[:-1])
@@ -1013,23 +1027,23 @@ class BaselineAgent(ArtificialBrain):
                 latest_search_room = area_to_search
                 if area_to_search in search_set:
                     trustBeliefs[self._human_name][search]['willingness'] -= 0.2
-                    trustBeliefs[self._human_name][search]['competency'] -= 0.1
+                    trustBeliefs[self._human_name][search]['competence'] -= 0.1
                 else:
                     search_set.add(area_to_search)
                     trustBeliefs[self._human_name][search]['willingness'] += 0.1
 
             elif 'Remove' in message:
-                  area_to_remove = int(message.split()[-1])
+                  area_to_remove = latest_search_room
                   if area_to_remove in search_set:
                       if area_to_remove not in help_remove:
                           help_remove.add(area_to_remove)
-                          trustBeliefs[self._human_name][search]['willingness'] += 0.1
-                          trustBeliefs[self._human_name][search]['competency'] -= 0.1
+                          trustBeliefs[self._human_name][remove]['willingness'] += 0.1
+                          trustBeliefs[self._human_name][remove]['competence'] -= 0.1
                       else:
-                          trustBeliefs[self._human_name][search]['willingness'] -= etas[index_eta_remove] * 0.1
+                          trustBeliefs[self._human_name][remove]['willingness'] -= etas[index_eta_remove] * 0.1
                           index_eta_remove = min(3, index_eta_remove + 1)
                   else:
-                      trustBeliefs[self._human_name][search]['willingness'] -= 0.1
+                      trustBeliefs[self._human_name][remove]['willingness'] -= 0.1
 
             elif 'Found' in message:
                 broken_message = message.split()
@@ -1037,7 +1051,7 @@ class BaselineAgent(ArtificialBrain):
                 area_of_found_victim = broken_message[-1]
 
                 if victim not in victims:
-                    trustBeliefs[self._human_name][search]['competency'] += 0.1
+                    trustBeliefs[self._human_name][search]['competence'] += 0.1
                 else:
                     trustBeliefs[self._human_name][search]['willingness'] -= etas[index_eta_search]
                     index_eta_search = min(3, index_eta_search + 1)
@@ -1057,6 +1071,10 @@ class BaselineAgent(ArtificialBrain):
                                                                        1)
         trustBeliefs[self._human_name][search]['willingness'] = np.clip(trustBeliefs[self._human_name][search]['willingness'], -1,
                                                                        1)
+        trustBeliefs[self._human_name][remove]['competence'] = np.clip(trustBeliefs[self._human_name][remove]['competence'], -1,
+                                                                       1)
+        trustBeliefs[self._human_name][remove]['willingness'] = np.clip(trustBeliefs[self._human_name][remove]['willingness'], -1,
+                                                                       1)
 
 
         robot_victim_help_sent_messages = []
@@ -1075,6 +1093,8 @@ class BaselineAgent(ArtificialBrain):
                                  trustBeliefs[self._human_name][search]['willingness'],search])
             csv_writer.writerow([self._human_name, trustBeliefs[self._human_name][rescue]['competence'],
                                  trustBeliefs[self._human_name][rescue]['willingness'],rescue])
+            csv_writer.writerow([self._human_name, trustBeliefs[self._human_name][remove]['competence'],
+                                 trustBeliefs[self._human_name][remove]['willingness'],remove])
 
         return trustBeliefs
 
