@@ -1,4 +1,4 @@
 name;competence;willingness;action
-Alex;0.7999999999999999;0.69;search
-Alex;0.6;0.5499999999999999;rescue
-Alex;0.30000000000000004;0.6;remove
+strong;0.5;0.5;search
+strong;0.5;0.5;rescue
+strong;0.5;0.5;remove
