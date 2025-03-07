@@ -517,7 +517,7 @@ class BaselineAgent(ArtificialBrain):
                         # Remove the obstacle alone if the human decides so
                         if self.received_messages_content and self.received_messages_content[
                             -1] == 'Remove alone' and not self._remove:
-                            if self.self._distance_human == 'close':
+                            if self._distance_human == 'close':
                                     self._received_messages.append("Update remove willingness -0.1")
                             self._answered = True
                             self._waiting = False
@@ -530,7 +530,7 @@ class BaselineAgent(ArtificialBrain):
                         if self.received_messages_content and self.received_messages_content[
                             -1] == 'Remove together' or self._remove:
                             # Depending on distance more willingness if given
-                            if self.self._distance_human == 'close':
+                            if self._distance_human == 'close':
                                 self._received_messages.append("Update remove willingness 0.1")
                             else:
                                 self._received_messages.append("Update remove willingness 0.3")
@@ -741,7 +741,7 @@ class BaselineAgent(ArtificialBrain):
                 if self.received_messages_content and self.received_messages_content[
                     -1] == 'Rescue alone' and 'mild' in self._recent_vic:
                      # Human was clode but decided not to help
-                    if self.self._distance_human == 'close':
+                    if self._distance_human == 'close':
                                 self._received_messages.append("Update remove willingness -0.1")
                     self._send_message('Picking up ' + self._recent_vic + ' in ' + self._door['room_name'] + '.',
                                       'RescueBot')
@@ -911,9 +911,9 @@ class BaselineAgent(ArtificialBrain):
                     area = 'area ' + msg.split()[-1]
                     if area not in self._searched_rooms:
                         self._searched_rooms.append(area)
-                    else:
-                        # Human is searching already searched room
-                        custom_mssgs.append("Update search competence -0.1")
+                    # else:
+                    #     # Human is searching already searched room
+                    #     custom_mssgs.append("Update search competence -0.1")
                 # If a received message involves team members finding victims, add these victims and their locations to memory
                 if msg.startswith("Found:"):
                     # If it were an obtacle blocking the room, assume that it is removed
@@ -1000,7 +1000,7 @@ class BaselineAgent(ArtificialBrain):
             if mssgs and mssgs[-1].split()[-1] in ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13',
                                                    '14']:
                 self._human_loc = int(mssgs[-1].split()[-1])
-        self.received_messages.extend(custom_mssgs)
+        self._received_messages.extend(custom_mssgs)
 
     def _loadBelief(self, members, folder):
         '''
@@ -1066,7 +1066,7 @@ class BaselineAgent(ArtificialBrain):
         for message in receivedMessages:
             if 'Update' in message:
                 splits = message.split()
-                trustBeliefs[self._human_name][splits[1]][splits[2]] += int(splits[3])
+                trustBeliefs[self._human_name][splits[1]][splits[2]] += float(splits[3])
             if 'Rescue' in message:
                 if message == 'Rescue alone':
                     index_eta = 0 if willing else min(3, index_eta + 1)
