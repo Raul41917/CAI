@@ -75,6 +75,10 @@ class BaselineAgent(ArtificialBrain):
         self._recent_vic = None
         self._received_messages = []
         self._moving = False
+        self._victims_saved_for_sure = []
+        self._random_nr = np.random.rand()
+        self._previous_nr_of_messages = -1
+        self._searched_by_human = []
 
     def initialize(self):
         # Initialization of the state tracker and navigation algorithm
@@ -106,6 +110,14 @@ class BaselineAgent(ArtificialBrain):
             for member in self._team_members:
                 if mssg.from_id == member and mssg.content not in self._received_messages:
                     self._received_messages.append(mssg.content)
+
+        # Some workaround to ensure that the random number generator remains consistent
+        # across subsequent game ticks
+        # The variable gets a new value when a new message was received
+        if len(self._received_messages) != self._previous_nr_of_messages:
+            self._previous_nr_of_messages = len(self._received_messages)
+            self._random_nr = np.random.rand()
+
         # Process messages from team members
         self._process_messages(state, self._team_members, self._condition)
         # Initialize and update trust beliefs for team members
@@ -162,7 +174,7 @@ class BaselineAgent(ArtificialBrain):
         remove_trust_willingness_prob = (trustBeliefs[self._human_name]['remove']['willingness'] + 1) * 0.5
 
         rescue_robot_trust_for_competence = np.random.rand() < rescue_trust_competence_prob
-        resscue_robot_trust_for_willingness = np.random.rand() < rescue_trust_willingness_prob
+        rescue_robot_trust_for_willingness = np.random.rand() < rescue_trust_willingness_prob
 
         search_robot_trust_for_competence = np.random.rand() < search_trust_competence_prob
         search_robot_trust_for_willingness = np.random.rand() < search_trust_willingness_prob
@@ -206,9 +218,21 @@ class BaselineAgent(ArtificialBrain):
                 if remaining_zones:
                     self._remainingZones = remaining_zones
                     self._remaining = remaining
-                # Remain idle if there are no victims left to rescue
+
+                # **** MODIFIED NEXT **** Remain idle if there are no victims left to rescue
+                # if not remaining_zones:
+                #     return None, {}
+
+                # no - actually the game ends if all the victims have been delivered to the drop point
+                # which can be checked in the rescue bot score dictionary 4 * 6 + 4 * 3
                 if not remaining_zones:
-                    return None, {}
+                    if state['rescue_bot']['score'] == 36:
+                        return None, {}
+                    else:
+                        self._collected_victims = self._victims_saved_for_sure
+                        self._searched_rooms = []
+                        self._phase = Phase.FIND_NEXT_GOAL
+                        return
 
                 # Check which victims can be rescued next because human or agent already found them
                 for vic in remaining_vics:
@@ -227,10 +251,6 @@ class BaselineAgent(ArtificialBrain):
                             return Idle.__name__, {'duration_in_ticks': 25}
                         # Plan path to area because the exact victim location is not known, only the area (i.e., human found this  victim)
                         if 'location' not in self._found_victim_logs[vic].keys():
-                            # if trust_willingness_prob:
-                            #     room = self.human_allegedly_found_the_victim(self.received_messages, vic)
-                            #     if room != -1:
-                            #         self._found_victim_logs[vic]['location'] = room
                             self._phase = Phase.PLAN_PATH_TO_ROOM
                             return Idle.__name__, {'duration_in_ticks': 25}
                     # Define a previously found victim as target victim
@@ -271,7 +291,12 @@ class BaselineAgent(ArtificialBrain):
                 if self._remainingZones and len(unsearched_rooms) == 0:
                     # Remove search willings and competence since the rooms were in theory searched by the human agent
                     self._received_messages.append("Update search willingness -0.3")
+
+                    ##TODO maybe we can talk about this - perhaps only willingness should be decremented. Arg: it means that the human lied, not that is necessarily incapable
                     self._received_messages.append("Update search competence -0.3")
+
+                    # Technically you don't need to call it again cause any remaining branch will not be executed and the next tick
+                    # Will store make use of the messages
                     self._trustBelief(self._team_members, trustBeliefs, self._folder, self._received_messages)
                     self._to_search = []
                     self._searched_rooms = []
@@ -310,10 +335,12 @@ class BaselineAgent(ArtificialBrain):
                 # Reset the navigator for a new path planning
                 self._navigator.reset_full()
 
-                # Check if there is a goal victim, and it has been found, but its location is not known
+                # *initially(Check if there is a goal victim, and it has been found, but its location is not known)
+                # this assumes that we trust that the human has found the specific thing, but I want to add the willingness of the thing
                 if self._goal_vic \
                         and self._goal_vic in self._found_victims \
-                        and 'location' not in self._found_victim_logs[self._goal_vic].keys():
+                        and 'location' not in self._found_victim_logs[self._goal_vic].keys()\
+                        and search_trust_willingness_prob:
                     # Retrieve the victim's room location and related information
                     victim_location = self._found_victim_logs[self._goal_vic]['room']
                     self._door = state.get_room_doors(victim_location)[0]
@@ -326,11 +353,24 @@ class BaselineAgent(ArtificialBrain):
                     # Set the door location based on the doormat
                     doorLoc = self._doormat
 
-                # If the goal victim's location is known, plan the route to the identified area
+                # # If the goal victim's location is known, plan the route to the identified area
+                # else:
+                #     if self._door['room_name'] == 'area 1':
+                #         self._doormat = (3, 5)
+                #     doorLoc = self._doormat
+
+                # new condition - if you do not trust the intel from the human regarding the target - remove
+                # the information from the victim_logs and try and research the next goal instead
                 else:
+                    if not search_trust_willingness_prob and self._goal_vic:
+                        self._found_victim_logs.pop(self._goal_vic, None)
+                        self._found_victims.remove(self._goal_vic)
+                        self._phase = Phase.FIND_NEXT_GOAL
+                        return None, {}
                     if self._door['room_name'] == 'area 1':
                         self._doormat = (3, 5)
                     doorLoc = self._doormat
+
 
                 # Add the door location as a waypoint for navigation
                 self._navigator.add_waypoints([doorLoc])
@@ -339,20 +379,25 @@ class BaselineAgent(ArtificialBrain):
 
             if Phase.FOLLOW_PATH_TO_ROOM == self._phase:
                 # Check if the previously identified target victim was rescued by the human
-                if self._goal_vic and self._goal_vic in self._collected_victims:
+                # + if there is trust for the human's rescue willingness
+                if self._goal_vic and self._goal_vic in self._collected_victims and rescue_trust_willingness_prob:
                     # Reset current door and switch to finding the next goal
                     self._current_door = None
                     self._phase = Phase.FIND_NEXT_GOAL
 
                 # Check if the human found the previously identified target victim in a different room
+                # + same as above
                 if self._goal_vic \
                         and self._goal_vic in self._found_victims \
-                        and self._door['room_name'] != self._found_victim_logs[self._goal_vic]['room']:
+                        and self._door['room_name'] != self._found_victim_logs[self._goal_vic]['room']\
+                        and search_trust_willingness_prob:
                     self._current_door = None
                     self._phase = Phase.FIND_NEXT_GOAL
 
                 # Check if the human already searched the previously identified area without finding the target victim
-                if self._door['room_name'] in self._searched_rooms and self._goal_vic not in self._found_victims:
+                # + and you trust the competency of the individual to find the specified victim
+                if self._door['room_name'] in self._searched_rooms and self._goal_vic not in self._found_victims\
+                        and search_trust_competence_prob:
                     self._current_door = None
                     self._phase = Phase.FIND_NEXT_GOAL
 
@@ -528,9 +573,9 @@ class BaselineAgent(ArtificialBrain):
                             self._to_search.append(self._door['room_name'])
                             self._phase = Phase.FIND_NEXT_GOAL
                         # Remove the obstacle alone if the human decides so
-                        if not remove_remove_robot_trust_for_competence or self.received_messages_content and self.received_messages_content[
+                        if not remove_robot_trust_for_competence or self.received_messages_content and self.received_messages_content[
                             -1] == 'Remove alone' and not self._remove:
-                            if self._distance_human == 'close' and remove_remove_robot_trust_for_competence:
+                            if self._distance_human == 'close' and remove_robot_trust_for_competence:
                                     self._received_messages.append("Update remove willingness -0.1")
                             self._answered = True
                             self._waiting = False
@@ -595,7 +640,7 @@ class BaselineAgent(ArtificialBrain):
                 self._answered = False
 
                 # Check if the target victim has been rescued by the human, and switch to finding the next goal
-                if self._goal_vic in self._collected_victims:
+                if self._goal_vic in self._collected_victims and rescue_trust_willingness_prob:
                     self._current_door = None
                     self._phase = Phase.FIND_NEXT_GOAL
 
@@ -867,7 +912,7 @@ class BaselineAgent(ArtificialBrain):
                         'class_inheritance'] and 'mild' in info['obj_id'] and info['location'] in self._roomtiles:
                         objects.append(info)
                         # Remain idle when the human has not arrived at the location (++ and the willingness of the human is high)
-                        if not self._human_name in info['name'] and (rescue_robot_trust_for_willingness or self.tick % 150 != 0):
+                        if not self._human_name in info['name'] and (rescue_trust_willingness_prob or self.tick % 150 != 0):
                             self._waiting = True
                             self._moving = False
                             return None, {}
@@ -920,11 +965,12 @@ class BaselineAgent(ArtificialBrain):
                 # Identify the next target victim to rescue
                 self._phase = Phase.FIND_NEXT_GOAL
                 # Award rescue competence and willigness if rescue completed
-                if self.rescue == 'together':
+                if self._rescue == 'together':
                      self._received_messages.append("Update rescue competence 0.2")
                      self._received_messages.append("Update rescue willingness 0.1")
                 self._rescue = None
                 self._current_door = None
+                self._victims_saved_for_sure.append(self._goal_vic)
                 self._tick = state['World']['nr_ticks']
                 self._carrying = False
                 # Drop the victim on the correct location on the drop zone
