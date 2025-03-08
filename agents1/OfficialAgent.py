@@ -1185,7 +1185,8 @@ class BaselineAgent(ArtificialBrain):
             if 'Update' in message:
                 splits = message.split()
                 trustBeliefs[self._human_name][splits[1]][splits[2]] += float(splits[3])
-            if 'Rescue' in message:
+
+            elif 'Rescue' in message:
                 # If the human agent instructs the robot to rescue the victim with her/his help
                 if message == 'Rescue alone':
                     index_eta = 0 if willing else min(3, index_eta + 1)
@@ -1198,20 +1199,31 @@ class BaselineAgent(ArtificialBrain):
                     willing = True
                     # Increase the willingness on the rescue task
                     trustBeliefs[self._human_name][rescue]['willingness'] += (etas[index_eta] * 0.05)
+
             elif 'Collect' in message:
-                msg_stripped = message.split()
-                message_without_room = " ".join(msg_stripped[:-1])
+                split_message = message.split(" ")
+                victim_to_collect = " ".join(split_message[1:4])
+                indicated_area = split_message[-1]
                 # If the human agent informs the robot about the itent to pick up a new mildly injured victim
-                if message_without_room not in picked_up_according_to_agent:
-                    picked_up_according_to_agent.add(message_without_room)
+                if victim_to_collect not in [victim_info[0] for victim_info in picked_up_according_to_agent]:
+                    picked_up_according_to_agent.add((victim_to_collect, indicated_area))
                     # Increase the competence for the rescue task
                     trustBeliefs[self._human_name][rescue]['competence'] += 0.05
-                # Else if the human agent informs the robot about the intent to pick up the same mildly injured victim
-                else:
+                # Else if the human agent informs the robot about the intent to pick up the same mildly injured victim from the same area
+                elif (victim_to_collect, indicated_area) in picked_up_according_to_agent:
                     # Decrease the willingness for the rescue task accouting for the fact that the human
                     # agent was either lying before or was lazy and dropped down the task
                     trustBeliefs[self._human_name][rescue]['willingness'] -= 0.1 * etas[index_eta_collect]
+                    # Decrease the competence for the rescue task accounting for the fact that the humn
+                    # agent might have been lazy and dropped the task
+                    trustBeliefs[self._human_name][rescue]['competence'] -= 0.1 * etas[index_eta_collect]
                     index_eta_collect = min(3, index_eta_collect + 1)
+                # Else if the human agent informs the robot about the intent to pick up the same mildly injured victim from a different area
+                else:
+                    # Decrease the willingness for the rescue task as the human agent lied before
+                    trustBeliefs[self._human_name][rescue]['willingness'] -= 0.1 * etas[index_eta_collect]
+                    index_eta_collect = min(3, index_eta_collect + 1)
+
             elif 'Search' in message:
                 area_to_search = int(message.split()[-1])
                 latest_search_room = area_to_search
