@@ -91,14 +91,14 @@ class BaselineAgent(ArtificialBrain):
         # Filtering of the world state before deciding on an action 
         return state
 
-    def human_allegedly_found_the_victim(self, received_messages, victim):
-        for msg in received_messages:
-            if "Found" in msg:
-                split_msg = msg.split()
-                victim_in_msg = " ".join(split_msg[1:-2])
-                if victim == victim_in_msg:
-                    return split_msg[-1]
-        return -1
+    # def human_allegedly_found_the_victim(self, received_messages, victim):
+    #     for msg in received_messages:
+    #         if "Found" in msg:
+    #             split_msg = msg.split()
+    #             victim_in_msg = " ".join(split_msg[1:-2])
+    #             if victim == victim_in_msg:
+    #                 return split_msg[-1]
+    #     return -1
 
     def decide_on_actions(self, state):
         # Identify team members
@@ -1166,6 +1166,7 @@ class BaselineAgent(ArtificialBrain):
         index_eta_remove = 0
         index_eta_search = 0
         index_eta_found = 0
+        index_eta_collect = 0
         index_eta_found_decreasing = 0
         willing = False
 
@@ -1185,51 +1186,61 @@ class BaselineAgent(ArtificialBrain):
                 splits = message.split()
                 trustBeliefs[self._human_name][splits[1]][splits[2]] += float(splits[3])
             if 'Rescue' in message:
+                # If the human agent instructs the robot to rescue the victim with her/his help
                 if message == 'Rescue alone':
                     index_eta = 0 if willing else min(3, index_eta + 1)
                     willing = False
-                    trustBeliefs[self._human_name][rescue]['willingness'] -= (etas[index_eta] * 0.1)
+                    # Decrease the willingness on the rescue task
+                    trustBeliefs[self._human_name][rescue]['willingness'] -= (etas[index_eta] * 0.05)
+                # Else if the humang agent informs the robot about the intent of rescuing the victim together
                 else:
                     index_eta = 0 if not willing else min(3, index_eta + 1)
                     willing = True
-                    trustBeliefs[self._human_name][rescue]['willingness'] += (etas[index_eta] * 0.1)
+                    # Increase the willingness on the rescue task
+                    trustBeliefs[self._human_name][rescue]['willingness'] += (etas[index_eta] * 0.05)
             elif 'Collect' in message:
                 msg_stripped = message.split()
                 message_without_room = " ".join(msg_stripped[:-1])
+                # If the human agent informs the robot about the itent to pick up a new mildly injured victim
                 if message_without_room not in picked_up_according_to_agent:
                     picked_up_according_to_agent.add(message_without_room)
-                    trustBeliefs[self._human_name][rescue]['competence']+= 0.1
+                    # Increase the competence for the rescue task
+                    trustBeliefs[self._human_name][rescue]['competence'] += 0.05
+                # Else if the human agent informs the robot about the intent to pick up the same mildly injured victim
                 else:
-                    trustBeliefs[self._human_name][rescue]['willingness']-= 0.1
+                    # Decrease the willingness for the rescue task accouting for the fact that the human
+                    # agent was either lying before or was lazy and dropped down the task
+                    trustBeliefs[self._human_name][rescue]['willingness'] -= 0.1 * etas[index_eta_collect]
+                    index_eta_collect = min(3, index_eta_collect + 1)
             elif 'Search' in message:
                 area_to_search = int(message.split()[-1])
                 latest_search_room = area_to_search
                 # If the human agent wants to search the same area again
                 if area_to_search in search_set:
                     # Decrease the willingness for the search task reflecing the fact that the human might be lying or is lazy
-                    trustBeliefs[self._human_name][search]['willingness'] -= 0.1 * etas[index_eta_search]
+                    trustBeliefs[self._human_name][search]['willingness'] -= 0.05 * etas[index_eta_search]
                     # Decrease the competence for the search task reflecting the fact the human was not competent enough to
                     # find victims in the mentioned are
-                    trustBeliefs[self._human_name][search]['competence'] -= 0.1 * etas[index_eta_search]
+                    trustBeliefs[self._human_name][search]['competence'] -= 0.05 * etas[index_eta_search]
                     index_eta_search = min(3, index_eta_search + 1)
                 # Else
                 else:
                     search_set.add(area_to_search)
                     # Increase the willingness for the search task
-                    trustBeliefs[self._human_name][search]['willingness'] += 0.1
+                    trustBeliefs[self._human_name][search]['willingness'] += 0.05
 
             elif 'Remove' in message:
                   area_to_remove = latest_search_room
                   if area_to_remove in search_set:
                       if area_to_remove not in help_remove:
                           help_remove.add(area_to_remove)
-                          trustBeliefs[self._human_name][remove]['willingness'] += 0.1
-                          trustBeliefs[self._human_name][remove]['competence'] -= 0.1
+                          trustBeliefs[self._human_name][remove]['willingness'] += 0.05
+                          trustBeliefs[self._human_name][remove]['competence'] -= 0.05
                       else:
-                          trustBeliefs[self._human_name][remove]['willingness'] -= etas[index_eta_remove] * 0.1
+                          trustBeliefs[self._human_name][remove]['willingness'] -= etas[index_eta_remove] * 0.05
                           index_eta_remove = min(3, index_eta_remove + 1)
                   else:
-                      trustBeliefs[self._human_name][remove]['willingness'] -= 0.1
+                      trustBeliefs[self._human_name][remove]['willingness'] -= 0.05
 
             elif 'Found' in message:
                 broken_message = message.split()
@@ -1242,11 +1253,11 @@ class BaselineAgent(ArtificialBrain):
                     # additionally saving the area where the victim was found
                     victims.add((victim, area_of_found_victim))
                     # Increase the competence, as the human agent managed to find a new victim
-                    trustBeliefs[self._human_name][search]['competence'] += 0.1
+                    trustBeliefs[self._human_name][search]['competence'] += 0.05
                 # Else if the found victim was already found in the same area as before
                 elif (victim, area_of_found_victim) in victims:
                     # Increase the willingness, reflecting the insistence of the human agent on saving this exact victim
-                    trustBeliefs[self._human_name][search]['willingness'] += etas_decreasing[index_eta_found_decreasing] * 0.1
+                    trustBeliefs[self._human_name][search]['willingness'] += etas_decreasing[index_eta_found_decreasing] * 0.05
                     index_eta_found = min(3, index_eta_found + 1)
                 # Else the victim was already found but in a different area
                 # (meaning that the human agent lied)
@@ -1254,21 +1265,21 @@ class BaselineAgent(ArtificialBrain):
                     # Add the (victim, new area) pair to account for future dishonest behaviour of the human agent
                     victims.add((victim, area_of_found_victim))
                     # Decrease the willingness, reflecting that the human agent is lying
-                    trustBeliefs[self._human_name][search]['willingness'] -= etas[index_eta_found] * 0.1
+                    trustBeliefs[self._human_name][search]['willingness'] -= etas[index_eta_found] * 0.05
                     index_eta_found = min(3, index_eta_found + 1)
                 # If the area indicated in the last `Found` message was never mentioned in a `Search` message
                 if area_of_found_victim not in search_set:
                     # Decrease the willingness, as the human agent was not willing to inform the robot about
                     # the intent of searching this specific area
                     # As this behaviour repeats itself, we penalize the willingness value more
-                    trustBeliefs[self._human_name][search]['willingness'] -= etas[index_eta_found] * 0.1
+                    trustBeliefs[self._human_name][search]['willingness'] -= etas[index_eta_found] * 0.05
                     index_eta_found = min(3, index_eta_found + 1)
                 # If the are indicated in the last `Found` message corresponds to that mentioned in the last
                 # `Search` message
                 elif latest_search_room == area_of_found_victim:
                     # Increase the willigness, as the human agent was willing to inform the robot about
                     # the intent of searching this specific area before exploring it
-                    trustBeliefs[self._human_name][search]['willingness'] += 0.1
+                    trustBeliefs[self._human_name][search]['willingness'] += 0.05
 
 
         trustBeliefs[self._human_name][rescue]['competence'] = np.clip(trustBeliefs[self._human_name][rescue]['competence'], -1,
