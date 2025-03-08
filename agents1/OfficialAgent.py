@@ -921,11 +921,11 @@ class BaselineAgent(ArtificialBrain):
                         'class_inheritance'] and 'mild' in info['obj_id'] and info['location'] in self._roomtiles:
                         objects.append(info)
                         # Remain idle when the human has not arrived at the location (++ and the willingness of the human is high)
-                        if not self._human_name in info['name'] and (rescue_trust_willingness_prob or self.tick % 150 != 0):
+                        if not self._human_name in info['name'] and (rescue_trust_willingness_prob or self._tick % 150 != 0):
                             self._waiting = True
                             self._moving = False
                             return None, {}
-                        elif not rescue_robot_trust_for_willingness and self.tick % 150 == 0:
+                        elif not rescue_robot_trust_for_willingness and self._tick % 150 == 0:
                             self.waiting = False
                             self.moving = True 
                             self._phase = Phase.FIND_NEXT_GOAL
