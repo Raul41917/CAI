@@ -117,6 +117,7 @@ class BaselineAgent(ArtificialBrain):
         if len(self._received_messages) != self._previous_nr_of_messages:
             self._previous_nr_of_messages = len(self._received_messages)
             self._random_nr = np.random.rand()
+            print(self._random_nr, self)
 
         # Process messages from team members
         self._process_messages(state, self._team_members, self._condition)
@@ -778,7 +779,7 @@ class BaselineAgent(ArtificialBrain):
                     self._waiting = False
                     # Tell the human to come over and help carry the critically injured victim
                     if not state[{'is_human_agent': True}]:
-                        if self.tick % 150 == 0 and not search_robot_trust_for_willingness:
+                        if not search_robot_trust_for_willingness:
                                     self._received_messages.append("Update rescue willingness -0.1")
                                     self._received_messages.append("Update rescue competence -0.2")
                                     self._answered = False
@@ -811,7 +812,7 @@ class BaselineAgent(ArtificialBrain):
                     self._waiting = False
                     # Tell the human to come over and help carry the mildly injured victim
                     if not state[{'is_human_agent': True}]:
-                        if self.tick % 150 == 0 and not search_robot_trust_for_willingness:
+                        if not search_robot_trust_for_willingness:
                                     self._received_messages.append("Update rescue willingness -0.1")
                                     self._received_messages.append("Update rescue competence -0.2")
                                     self._answered = False
@@ -1020,6 +1021,7 @@ class BaselineAgent(ArtificialBrain):
                 # If a received message involves team members finding victims, add these victims and their locations to memory
                 if msg.startswith("Found:"):
                     # If it were an obtacle blocking the room, assume that it is removed
+                    area = 'area ' + msg.split()[-1]
                     self._accessible_rooms.append(area)
                     # Identify which victim and area it concerns
                     if len(msg.split()) == 6:
