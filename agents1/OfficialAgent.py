@@ -79,6 +79,7 @@ class BaselineAgent(ArtificialBrain):
         self._random_nr = np.random.rand()
         self._previous_nr_of_messages = -1
         self._searched_by_human = []
+        self._previous_score = 0
 
     def initialize(self):
         # Initialization of the state tracker and navigation algorithm
@@ -114,16 +115,23 @@ class BaselineAgent(ArtificialBrain):
         # Some workaround to ensure that the random number generator remains consistent
         # across subsequent game ticks
         # The variable gets a new value when a new message was received
-        if len(self._received_messages) != self._previous_nr_of_messages:
-            self._previous_nr_of_messages = len(self._received_messages)
-            self._random_nr = np.random.rand()
-            print(self._random_nr, self)
 
         # Process messages from team members
         self._process_messages(state, self._team_members, self._condition)
         # Initialize and update trust beliefs for team members
         trustBeliefs = self._loadBelief(self._team_members, self._folder)
         self._trustBelief(self._team_members, trustBeliefs, self._folder, self._received_messages)
+
+        if len(self._received_messages) != self._previous_nr_of_messages:
+            self._previous_nr_of_messages = len(self._received_messages)
+            self._random_nr = np.random.rand()
+            print(self._random_nr, trustBeliefs[self._human_name]['rescue']['willingness'], trustBeliefs[self._human_name]['rescue']['competence'])
+
+        current_score = state['rescuebot']['score']
+        if self._previous_score != state['rescuebot']['score']:
+            if current_score - self._previous_score == 6:
+                self._received_messages.append("Update rescue competence 0.2")
+                self._previous_score = current_score
 
         # Check whether human is close in distance
         if state[{'is_human_agent': True}]:
@@ -780,18 +788,18 @@ class BaselineAgent(ArtificialBrain):
                     # Tell the human to come over and help carry the critically injured victim
                     if not state[{'is_human_agent': True}]:
                         if not search_robot_trust_for_willingness:
-                                    self._received_messages.append("Update rescue willingness -0.1")
-                                    self._received_messages.append("Update rescue competence -0.2")
-                                    self._answered = False
-                                    self._remove = False
-                                    self._waiting = False
-                                    self._remove_together = False
-                                    self._phase = Phase.ENTER_ROOM
-                                    self._to_search.append(self._door['room_name'])
-                                    self._phase = Phase.FIND_NEXT_GOAL
-                                    self._send_message('Please come to ' + str(self._door['room_name']) + ' to remove rock.',
-                                                    'RescueBot')
-                                    return None, {}
+                            self._received_messages.append("Update rescue willingness -0.1")
+                            self._received_messages.append("Update rescue competence -0.2")
+                            self._answered = False
+                            self._remove = False
+                            self._waiting = False
+                            self._remove_together = False
+                            self._phase = Phase.ENTER_ROOM
+                            self._to_search.append(self._door['room_name'])
+                            self._phase = Phase.FIND_NEXT_GOAL
+                            self._send_message('Please come to ' + str(self._door['room_name']) + ' to remove rock.',
+                                            'RescueBot')
+                            return None, {}
                         self._send_message('Please come to ' + str(self._door['room_name']) + ' to carry ' + str(
                             self._recent_vic) + ' together.', 'RescueBot')
                     # Tell the human to carry the critically injured victim together
@@ -1144,7 +1152,7 @@ class BaselineAgent(ArtificialBrain):
         known_actions = {'rescue','search','remove'}
         for action in known_actions:
             if action not in trustBeliefs[self._human_name]:
-                trustBeliefs[self._human_name][action] = {'competence': default, 'willingness': default}
+                trustBeliefs[self._human_name][action] = {'competence': default, 'willingness': 0.9}
         return trustBeliefs
 
     def _trustBelief(self, members, trustBeliefs, folder, receivedMessages):
@@ -1181,7 +1189,6 @@ class BaselineAgent(ArtificialBrain):
                     index_eta = 0 if not willing else min(3, index_eta + 1)
                     willing = True
                     trustBeliefs[self._human_name][rescue]['willingness'] += (etas[index_eta] * 0.1)
-                    #trustBeliefs[self._human_name][rescue]['competence'] -= 0.1
             elif 'Collect' in message:
                 msg_stripped = message.split()
                 message_without_room = " ".join(msg_stripped[:-1])
