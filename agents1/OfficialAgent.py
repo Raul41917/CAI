@@ -128,12 +128,7 @@ class BaselineAgent(ArtificialBrain):
             self._random_nr = np.random.rand()
             print(self._random_nr, trustBeliefs[self._human_name]['rescue']['willingness'], trustBeliefs[self._human_name]['rescue']['competence'])
 
-        current_score = state['rescuebot']['score']
-        if self._previous_score != state['rescuebot']['score']:
-            if current_score - self._previous_score == 6:
-                self._received_messages.append("Update rescue competence 0.2")
-                self._previous_score = current_score
-
+       
         # Check whether human is close in distance
         if state[{'is_human_agent': True}]:
             self._distance_human = 'close'
@@ -863,7 +858,7 @@ class BaselineAgent(ArtificialBrain):
                     -1] == 'Rescue alone' and 'mild' in self._recent_vic:
                      # Human was clode but decided not to help
                     if self._distance_human == 'close':
-                                self._received_messages.append("Update remove willingness -0.1")
+                                self._received_messages.append("Update rescue willingness -0.1")
                     self._send_message('Picking up ' + self._recent_vic + ' in ' + self._door['room_name'] + '.',
                                       'RescueBot')
                     self._rescue = 'alone'
@@ -875,6 +870,7 @@ class BaselineAgent(ArtificialBrain):
                     self._phase = Phase.PLAN_PATH_TO_VICTIM
                 # Continue searching other areas if the human decides so
                 if self.received_messages_content and self.received_messages_content[-1] == 'Continue':
+                    self._received_messages.append("Update rescue willingness -0.1")
                     self._answered = True
                     self._waiting = False
                     self._todo.append(self._recent_vic)
