@@ -1160,9 +1160,13 @@ class BaselineAgent(ArtificialBrain):
         Baseline implementation of a trust belief. Creates a dictionary with trust belief scores for each team member, for example based on the received messages.
         '''
         etas = [0.5, 0.70, 0.9, 1]
+        etas_decreasing = [1, 0.9, 0.7, 0.5]
+
         index_eta = 0
         index_eta_remove = 0
         index_eta_search = 0
+        index_eta_found = 0
+        index_eta_found_decreasing = 0
         willing = False
 
         search_set = set()
@@ -1200,11 +1204,18 @@ class BaselineAgent(ArtificialBrain):
             elif 'Search' in message:
                 area_to_search = int(message.split()[-1])
                 latest_search_room = area_to_search
+                # If the human agent wants to search the same area again
                 if area_to_search in search_set:
-                    trustBeliefs[self._human_name][search]['willingness'] -= 0.2
-                    trustBeliefs[self._human_name][search]['competence'] -= 0.1
+                    # Decrease the willingness for the search task reflecing the fact that the human might be lying or is lazy
+                    trustBeliefs[self._human_name][search]['willingness'] -= 0.1 * etas[index_eta_search]
+                    # Decrease the competence for the search task reflecting the fact the human was not competent enough to
+                    # find victims in the mentioned are
+                    trustBeliefs[self._human_name][search]['competence'] -= 0.1 * etas[index_eta_search]
+                    index_eta_search = min(3, index_eta_search + 1)
+                # Else
                 else:
                     search_set.add(area_to_search)
+                    # Increase the willingness for the search task
                     trustBeliefs[self._human_name][search]['willingness'] += 0.1
 
             elif 'Remove' in message:
@@ -1225,16 +1236,38 @@ class BaselineAgent(ArtificialBrain):
                 victim = " ".join(broken_message[1: -2])
                 area_of_found_victim = broken_message[-1]
 
-                if victim not in victims:
+                # If the found victim is not part of the group of already found victims
+                if victim not in [victim_info[0] for victim_info in victims]:
+                    # Add the new found victim to the group of already found victims
+                    # additionally saving the area where the victim was found
+                    victims.add((victim, area_of_found_victim))
+                    # Increase the competence, as the human agent managed to find a new victim
                     trustBeliefs[self._human_name][search]['competence'] += 0.1
+                # Else if the found victim was already found in the same area as before
+                elif (victim, area_of_found_victim) in victims:
+                    # Increase the willingness, reflecting the insistence of the human agent on saving this exact victim
+                    trustBeliefs[self._human_name][search]['willingness'] += etas_decreasing[index_eta_found_decreasing] * 0.1
+                    index_eta_found = min(3, index_eta_found + 1)
+                # Else the victim was already found but in a different area
+                # (meaning that the human agent lied)
                 else:
-                    trustBeliefs[self._human_name][search]['willingness'] -= etas[index_eta_search]
-                    index_eta_search = min(3, index_eta_search + 1)
-
+                    # Add the (victim, new area) pair to account for future dishonest behaviour of the human agent
+                    victims.add((victim, area_of_found_victim))
+                    # Decrease the willingness, reflecting that the human agent is lying
+                    trustBeliefs[self._human_name][search]['willingness'] -= etas[index_eta_found] * 0.1
+                    index_eta_found = min(3, index_eta_found + 1)
+                # If the area indicated in the last `Found` message was never mentioned in a `Search` message
                 if area_of_found_victim not in search_set:
-                    trustBeliefs[self._human_name][search]['willingness'] -= etas[index_eta_search] * 0.1
-                    index_eta_search = min(3, index_eta_search + 1)
+                    # Decrease the willingness, as the human agent was not willing to inform the robot about
+                    # the intent of searching this specific area
+                    # As this behaviour repeats itself, we penalize the willingness value more
+                    trustBeliefs[self._human_name][search]['willingness'] -= etas[index_eta_found] * 0.1
+                    index_eta_found = min(3, index_eta_found + 1)
+                # If the are indicated in the last `Found` message corresponds to that mentioned in the last
+                # `Search` message
                 elif latest_search_room == area_of_found_victim:
+                    # Increase the willigness, as the human agent was willing to inform the robot about
+                    # the intent of searching this specific area before exploring it
                     trustBeliefs[self._human_name][search]['willingness'] += 0.1
 
 
