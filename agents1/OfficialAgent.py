@@ -489,7 +489,7 @@ class BaselineAgent(ArtificialBrain):
                             # Tell the human to come over and be idle untill human arrives
                             if not state[{'is_human_agent': True}]:
                                 #stop waiting for human check every 15 seconds for random roll
-                                if self.tick % 150 == 0 and not remove_robot_trust_for_willingness:
+                                if not remove_robot_trust_for_willingness:
                                     self._received_messages.append("Update remove willingness -0.1")
                                     self._received_messages.append("Update remove competence  -0.2")
                                     self._answered = False
@@ -599,7 +599,7 @@ class BaselineAgent(ArtificialBrain):
                             # Tell the human to come over and be idle untill human arrives
                             if not state[{'is_human_agent': True}]:
                                 #stop waiting for human check every 15 seconds for random roll
-                                if self.tick % 150 == 0 and not remove_robot_trust_for_willingness:
+                                if not remove_robot_trust_for_willingness:
                                     self._received_messages.append("Update remove willingness -0.1")
                                     self._received_messages.append("Update remove competence -0.2")
                                     self._answered = False
