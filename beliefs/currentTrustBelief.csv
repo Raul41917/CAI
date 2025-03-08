@@ -1,4 +1,4 @@
 name;competence;willingness;action
-Alice;0.24999999999999994;1.0;search
-Alice;1.0;1.0;rescue
-Alice;0.2;1.0;remove
+Alice;0.5;0.5;search
+Alice;0.5;0.5;rescue
+Alice;0.5;0.4;remove
