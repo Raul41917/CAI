@@ -1198,9 +1198,9 @@ class BaselineAgent(ArtificialBrain):
                 message_without_room = " ".join(msg_stripped[:-1])
                 if message_without_room not in picked_up_according_to_agent:
                     picked_up_according_to_agent.add(message_without_room)
-                    trustBeliefs[self._human_name][rescue]['competence']+= 0.1
+                    trustBeliefs[self._human_name][rescue]['competence'] += 0.1
                 else:
-                    trustBeliefs[self._human_name][rescue]['willingness']-= 0.1
+                    trustBeliefs[self._human_name][rescue]['willingness'] -= 0.1
             elif 'Search' in message:
                 area_to_search = int(message.split()[-1])
                 latest_search_room = area_to_search
