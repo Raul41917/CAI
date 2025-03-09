@@ -802,6 +802,8 @@ class BaselineAgent(ArtificialBrain):
                     self._waiting = False
                     self._rescue = False
                     # Reset received messages (bug fix)
+                    self._trustBelief(self._team_members, trustBeliefs, self._folder, self._received_messages)
+                    self.writeToFile()
                     self._custom_messages = []
                     self.received_messages = []
                     self.received_messages_content = []
@@ -1156,6 +1158,7 @@ class BaselineAgent(ArtificialBrain):
                         if area in self._searched_rooms:
                             self._searched_rooms.remove(area)
                         # Clear received messages (bug fix)
+                        self._trustBelief(self._team_members, trustBeliefs, self._folder, self._received_messages)
                         self._custom_messages = []
                         self.received_messages = []
                         self.received_messages_content = []

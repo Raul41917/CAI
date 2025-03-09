@@ -15,7 +15,7 @@ from matrx.objects import EnvObject
 from matrx.world_builder import RandomProperty
 from matrx.goals import WorldGoal
 
-from agents1.BaselineRescue import RANDOM_TRUST, NEVER_TRUST
+from agents1.BaselineRescue import RANDOM_TRUST, NEVER_TRUST, ALWAYS_TRUST
 from agents1.OfficialAgent import BaselineAgent
 from agents1.RescueAgent import RescueAgent
 from agents1.TutorialAgent import TutorialAgent
