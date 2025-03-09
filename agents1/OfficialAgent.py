@@ -117,7 +117,13 @@ class BaselineAgent(ArtificialBrain):
         self._process_messages(state, self._team_members, self._condition)
         # Initialize and update trust beliefs for team members
 
-
+        # for msg in self._received_messages:
+        #     print(msg)
+        #
+        # for msg in self._custom_messages:
+        #     print(msg)
+        #
+        # print()
         trustBeliefs = self._loadBelief(self._team_members, self._folder)
         self._trustBelief(self._team_members, trustBeliefs, self._folder, self._received_messages)
 
@@ -1208,12 +1214,9 @@ class BaselineAgent(ArtificialBrain):
         index_eta_found_decreasing = 0
         willing = False
 
-        search_set = set()
-        help_remove = set()
-        victims = set()
-
-        search_by_robot = self._searched_rooms_robot
-        victims_by_robot = self._victims_saved_for_sure
+        search_set = []
+        help_remove = []
+        victims = []
 
         latest_search_room = -1
 
@@ -1223,6 +1226,7 @@ class BaselineAgent(ArtificialBrain):
         remove = 'remove'
 
         for message in receivedMessages:
+            print(message)
             if 'Rescue' in message:
                 # If the human agent instructs the robot to rescue the victim with her/his help
                 if message == 'Rescue alone':
@@ -1266,7 +1270,7 @@ class BaselineAgent(ArtificialBrain):
                     index_eta_search = min(3, index_eta_search + 1)
                 # Else
                 else:
-                    search_set.add(area_to_search)
+                    search_set.append(area_to_search)
                     # Increase the willingness for the search task
                     trustBeliefs[self._human_name][search]['willingness'] += 0.05
 
@@ -1274,7 +1278,7 @@ class BaselineAgent(ArtificialBrain):
                   area_to_remove = latest_search_room
                   if area_to_remove in search_set:
                       if area_to_remove not in help_remove:
-                          help_remove.add(area_to_remove)
+                          help_remove.append(area_to_remove)
                           trustBeliefs[self._human_name][remove]['willingness'] += 0.05
                           trustBeliefs[self._human_name][remove]['competence'] -= 0.05
                       else:
@@ -1286,15 +1290,16 @@ class BaselineAgent(ArtificialBrain):
             elif 'Found' in message:
                 broken_message = message.split()
                 victim = " ".join(broken_message[1: -2])
-                area_of_found_victim = broken_message[-1]
+                area_of_found_victim = int(broken_message[-1])
 
                 # If the found victim is not part of the group of already found victims
                 if victim not in [victim_info[0] for victim_info in victims]:
                     # Add the new found victim to the group of already found victims
                     # additionally saving the area where the victim was found
-                    victims.add((victim, area_of_found_victim))
+                    victims.append((victim, area_of_found_victim))
                     # Increase the competence, as the human agent managed to find a new victim
                     trustBeliefs[self._human_name][search]['competence'] += 0.05
+
                 # Else if the found victim was already found in the same area as before
                 elif (victim, area_of_found_victim) in victims:
                     # Increase the willingness, reflecting the insistence of the human agent on saving this exact victim
@@ -1304,10 +1309,11 @@ class BaselineAgent(ArtificialBrain):
                 # (meaning that the human agent lied)
                 else:
                     # Add the (victim, new area) pair to account for future dishonest behaviour of the human agent
-                    victims.add((victim, area_of_found_victim))
+                    victims.append((victim, area_of_found_victim))
                     # Decrease the willingness, reflecting that the human agent is lying
                     trustBeliefs[self._human_name][search]['willingness'] -= etas[index_eta_found] * 0.05
                     index_eta_found = min(3, index_eta_found + 1)
+                    print("something here")
                 # If the area indicated in the last `Found` message was never mentioned in a `Search` message
                 if area_of_found_victim not in search_set:
                     # Decrease the willingness, as the human agent was not willing to inform the robot about
@@ -1315,6 +1321,7 @@ class BaselineAgent(ArtificialBrain):
                     # As this behaviour repeats itself, we penalize the willingness value more
                     trustBeliefs[self._human_name][search]['willingness'] -= etas[index_eta_found] * 0.05
                     index_eta_found = min(3, index_eta_found + 1)
+                    print("perhaps here also")
                 # If the are indicated in the last `Found` message corresponds to that mentioned in the last
                 # `Search` message
                 elif latest_search_room == area_of_found_victim:
@@ -1333,8 +1340,9 @@ class BaselineAgent(ArtificialBrain):
             trustBeliefs[self._human_name][remove]['competence'] = np.clip(trustBeliefs[self._human_name][remove]['competence'], -1,
                                                                            1)
             trustBeliefs[self._human_name][remove]['willingness'] = np.clip(trustBeliefs[self._human_name][remove]['willingness'], -1,
-                                                                            1)
+                                                                        1)
         for msg in self._custom_messages:
+            print(msg)
             splits = msg.split()
             trustBeliefs[self._human_name][splits[1]][splits[2]] += float(splits[3])
             trustBeliefs[self._human_name][rescue]['competence'] = np.clip(
@@ -1355,7 +1363,7 @@ class BaselineAgent(ArtificialBrain):
             trustBeliefs[self._human_name][remove]['willingness'] = np.clip(
                 trustBeliefs[self._human_name][remove]['willingness'], -1,
                 1)
-
+        print()
 
         robot_victim_help_sent_messages = []
         for msg in self._send_messages:
