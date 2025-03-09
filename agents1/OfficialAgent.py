@@ -115,6 +115,10 @@ class BaselineAgent(ArtificialBrain):
         # across subsequent game ticks
         # The variable gets a new value when a new message was received
 
+        for msg in self._received_messages:
+            print(msg)
+        print()
+
         # Process messages from team members
         self._process_messages(state, self._team_members, self._condition)
         # Initialize and update trust beliefs for team members
@@ -798,8 +802,8 @@ class BaselineAgent(ArtificialBrain):
                     self._waiting = False
                     self._rescue = False
                     # Reset received messages (bug fix)
-                    self.received_messages = []
-                    self.received_messages_content = []
+                    # self.received_messages = []
+                    # self.received_messages_content = []
                 # Add the area to the list of searched areas
                 if self._door['room_name'] not in self._searched_rooms:
                     self._searched_rooms.append(self._door['room_name'])
@@ -1132,8 +1136,8 @@ class BaselineAgent(ArtificialBrain):
                         if area in self._searched_rooms:
                             self._searched_rooms.remove(area)
                         # Clear received messages (bug fix)
-                        self.received_messages = []
-                        self.received_messages_content = []
+                        # self.received_messages = []
+                        # self.received_messages_content = []
                         self._moving = True
                         self._called_remove = True
                         self._remove = True
@@ -1224,7 +1228,7 @@ class BaselineAgent(ArtificialBrain):
         remove = 'remove'
 
         for message in receivedMessages:
-            print(message)
+            # print(message)
             if 'Rescue' in message:
                 # If the human agent instructs the robot to rescue the victim with her/his help
                 if message == 'Rescue alone':
