@@ -1154,13 +1154,8 @@ class BaselineAgent(ArtificialBrain):
                         if area in self._searched_rooms:
                             self._searched_rooms.remove(area)
                         # Clear received messages (bug fix)
-<<<<<<< Updated upstream
                         # self.received_messages = []
                         # self.received_messages_content = []
-=======
-    
-                        self.received_messages_content = []
->>>>>>> Stashed changes
                         self._moving = True
                         self._called_remove = True
                         self._remove = True
