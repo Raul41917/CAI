@@ -1152,12 +1152,13 @@ class BaselineAgent(ArtificialBrain):
                         area = 'area ' + msg.split()[-1]
                         if msg.split()[-1] in self._accessible_rooms:
                             # Human did not remove the object when initially searched the room
-                            self._custom_messages.append("Update remove competence  -0.05")
+                            self._custom_messages.append("Update remove competence -0.05")
                         self._door = state.get_room_doors(area)[0]
                         self._doormat = state.get_room(area)[-1]['doormat']
                         if area in self._searched_rooms:
                             self._searched_rooms.remove(area)
                         # Clear received messages (bug fix)
+                        trustBeliefs = self._loadBelief(self._team_members, self._folder)
                         self._trustBelief(self._team_members, trustBeliefs, self._folder, self._received_messages)
                         self._custom_messages = []
                         self.received_messages = []
