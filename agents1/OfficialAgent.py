@@ -58,7 +58,7 @@ class BaselineAgent(ArtificialBrain):
         self._collected_victims = []
         self._found_victim_logs = {}
         self._send_messages = []
-        self._max_wait = 30
+        self._max_wait = 150
         self._current_door = None
         self._waiting_since = None
         self._team_members = []
