@@ -1111,7 +1111,7 @@ class BaselineAgent(ArtificialBrain):
                         self._found_victim_logs[foundVic] = {'room': loc}
                     if foundVic in self._found_victims and self._found_victim_logs[foundVic]['room'] != loc:
                         # Victom supposedly found somehwere else already
-                        # self._received_messages.append("Update search competence -0.2")
+                        self._custom_messages.append("Update search competence -0.05")
                         self._found_victim_logs[foundVic] = {'room': loc}
                     # Decide to help the human carry a found victim when the human's condition is 'weak'
                     if condition == 'weak':
@@ -1149,9 +1149,8 @@ class BaselineAgent(ArtificialBrain):
                         # Identify at which location the human needs help
                         area = 'area ' + msg.split()[-1]
                         if msg.split()[-1] in self._accessible_rooms:
-                            pass
                             # Human did not remove the object when initially searched the room
-                            # self._received_messages.append("Update remove competence  -0.1")
+                            self._custom_messages.append("Update remove competence  -0.05")
                         self._door = state.get_room_doors(area)[0]
                         self._doormat = state.get_room(area)[-1]['doormat']
                         if area in self._searched_rooms:
