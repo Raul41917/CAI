@@ -472,7 +472,7 @@ class BaselineAgent(ArtificialBrain):
                 #print(self._waiting_since, remove_willingness_boolean)
                 #stop waiting for human with random check after x seconds of waiting
                 if self._waiting_since is not None and not remove_willingness_boolean and (self._tick - self._waiting_since) > self._max_wait and (self._tick - self._waiting_since) % 25 == 0:
-                    self._custom_messages.append("Update remove willingness -0.05")
+                    self._custom_messages.append("Update remove willingness -0.15")
                     self._answered = False
                     self._waiting_since = None
                     self._remove = False
@@ -589,7 +589,7 @@ class BaselineAgent(ArtificialBrain):
                             info['obj_id']:
                         # Human asked for help removing simple stome
                         if self._called_remove:
-                            self._custom_messages.append("Update remove competence -0.05")
+                            self._custom_messages.append("Update remove competence -0.1")
                         self._called_remove = False
                         objects.append(info)
                         # Communicate which obstacle is blocking the entrance
@@ -619,7 +619,7 @@ class BaselineAgent(ArtificialBrain):
                             -1] == 'Remove alone' and not self._remove:
                             self._called_remove = False
                             if self._distance_human == 'close':
-                                    self._custom_messages.append("Update remove willingness -0.05")
+                                    self._custom_messages.append("Update remove willingness -0.1")
                             self._answered = True
                             self._waiting = False
                             self._remove_together = False
@@ -963,10 +963,10 @@ class BaselineAgent(ArtificialBrain):
                             self._moving = False
                             return None, {}
                         else:
-                            self.waiting = False
+                            self._waiting = False
                             self._waiting_since = None
                             self._answered = False
-                            self.moving = True 
+                            self._moving = True 
                             self._phase = Phase.FIND_NEXT_GOAL
                             return None, {}
                 # Add the victim to the list of rescued victims when it has been picked up
