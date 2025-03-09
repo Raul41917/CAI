@@ -66,12 +66,22 @@ class RANDOM_TRUST(BaselineAgent):
 
     def _trustBelief(self, members, trustBeliefs, folder, receivedMessages):
         np.random.rand(42)
-        trustBeliefs[self._human_name]['competence'] = 0.55
-        trustBeliefs[self._human_name]['willingness'] = -0.14
+        trustBeliefs[self._human_name]['search']['competence'] = np.random.rand()
+        trustBeliefs[self._human_name]['search']['willingness'] = np.random.rand()
+ 
+        trustBeliefs[self._human_name]['rescue']['competence'] = np.random.rand()
+        trustBeliefs[self._human_name]['rescue']['willingness'] = np.random.rand()
 
-        # with open(folder + '/beliefs/currentTrustBelief.csv', mode='w') as csv_file:
-        #     csv_writer = csv.writer(csv_file, delimiter=';', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        #     csv_writer.writerow(['name', 'competence', 'willingness'])
-        #     csv_writer.writerow([self._human_name, trustBeliefs[self._human_name]['competence'],
-        #                          trustBeliefs[self._human_name]['willingness']])
+        trustBeliefs[self._human_name]['remove']['competence'] = np.random.rand()
+        trustBeliefs[self._human_name]['remove']['willingness'] = np.random.rand()
+
+        with open(folder + '/beliefs/currentTrustBelief.csv', mode='w') as csv_file:
+            csv_writer = csv.writer(csv_file, delimiter=';', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+            csv_writer.writerow(['name', 'competence', 'willingness', 'action'])
+            csv_writer.writerow([self._human_name, trustBeliefs[self._human_name]['search']['competence'],
+                                 trustBeliefs[self._human_name]['search']['willingness'],'search'])
+            csv_writer.writerow([self._human_name, trustBeliefs[self._human_name]['rescue']['competence'],
+                                 trustBeliefs[self._human_name]['rescue']['willingness'],'rescue'])
+            csv_writer.writerow([self._human_name, trustBeliefs[self._human_name]['remove']['competence'],
+                                 trustBeliefs[self._human_name]['remove']['willingness'],'remove'])
         return trustBeliefs
