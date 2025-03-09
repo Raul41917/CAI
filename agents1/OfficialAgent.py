@@ -117,9 +117,6 @@ class BaselineAgent(ArtificialBrain):
         self._process_messages(state, self._team_members, self._condition)
         # Initialize and update trust beliefs for team members
 
-        for msg in self._received_messages:
-            print(msg)
-        print()
 
         trustBeliefs = self._loadBelief(self._team_members, self._folder)
         self._trustBelief(self._team_members, trustBeliefs, self._folder, self._received_messages)
@@ -131,7 +128,7 @@ class BaselineAgent(ArtificialBrain):
 
         current_score = state['rescuebot']['score']
         if self._previous_score != state['rescuebot']['score']:
-            if current_score - self._previous_score > 0:
+            if current_score - self._previous_score == 6:
                 self._custom_messages.append("Update rescue competence 0.1")
                 self._previous_score = current_score
 
@@ -304,7 +301,7 @@ class BaselineAgent(ArtificialBrain):
                     self._custom_messages.append("Update search willingness -0.2")
 
                     ##TODO maybe we can talk about this - perhaps only willingness should be decremented. Arg: it means that the human lied, not that is necessarily incapable
-                    self._custom_messages.append("Update search competence -0.2")
+                    self._custom_messages.append("Update search competence -0.1")
 
                     # Will store make use of the messages
                     self._to_search = []
@@ -463,7 +460,7 @@ class BaselineAgent(ArtificialBrain):
                 objects = []
                 # Update remove competence of human if they said that the area was already searched
                 if not self._waiting and self._door['room_name'] in self._accessible_rooms:
-                         self._custom_messages.append("Update search competence -0.2")
+                         self._custom_messages.append("Update search competence -0.05")
 
                 agent_location = state[self.agent_id]['location']
                 # Identify which obstacle is blocking the entrance
@@ -879,7 +876,7 @@ class BaselineAgent(ArtificialBrain):
                     -1] == 'Rescue alone' and 'mild' in self._recent_vic:
                      # Human was clode but decided not to help
                     if self._distance_human == 'close':
-                                self._custom_messages.append("Update rescue willingness -0.1")
+                            self._custom_messages.append("Update rescue willingness -0.1")
 
                     # Cancel out with always awarding points for victim rescued
                     self._custom_messages.append("Update rescue competence -0.1")
@@ -1244,29 +1241,20 @@ class BaselineAgent(ArtificialBrain):
                 message_without_room = " ".join(msg_stripped[:-1])
                 victim = " ".join(msg_stripped[1: -2])
 
-                # If the victim was saved for sure by the robot
-                if victim in victims_by_robot:
-                    trustBeliefs[self._human_name][rescue]['willingness'] -= 0.05
-
+                # If the human agent informs the robot about the itent to pick up a new mildly injured victim
+                if message_without_room not in picked_up_according_to_agent:
+                    picked_up_according_to_agent.add(message_without_room)
+                    # Increase the competence for the rescue task
+                    trustBeliefs[self._human_name][rescue]['competence'] += 0.05
+                # Else if the human agent informs the robot about the intent to pick up the same mildly injured victim
                 else:
-                    # If the human agent informs the robot about the itent to pick up a new mildly injured victim
-                    if message_without_room not in picked_up_according_to_agent:
-                        picked_up_according_to_agent.add(message_without_room)
-                        # Increase the competence for the rescue task
-                        trustBeliefs[self._human_name][rescue]['competence'] += 0.05
-                    # Else if the human agent informs the robot about the intent to pick up the same mildly injured victim
-                    else:
-                        # Decrease the willingness for the rescue task accouting for the fact that the human
-                        # agent was either lying before or was lazy and dropped down the task
-                        trustBeliefs[self._human_name][rescue]['willingness'] -= 0.1 * etas[index_eta_collect]
-                        index_eta_collect = min(3, index_eta_collect + 1)
+                    # Decrease the willingness for the rescue task accouting for the fact that the human
+                    # agent was either lying before or was lazy and dropped down the task
+                    trustBeliefs[self._human_name][rescue]['willingness'] -= 0.1 * etas[index_eta_collect]
+                    index_eta_collect = min(3, index_eta_collect + 1)
             elif 'Search' in message:
                 area_to_search = int(message.split()[-1])
                 latest_search_room = area_to_search
-
-                # If the area has already been searched by the robot -> decrease competency
-                if area_to_search in search_by_robot:
-                    trustBeliefs[self._human_name][search]['competence'] -= 0.05
 
                 # If the human agent wants to search the same area again
                 if area_to_search in search_set:
