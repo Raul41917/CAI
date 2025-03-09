@@ -117,13 +117,6 @@ class BaselineAgent(ArtificialBrain):
         self._process_messages(state, self._team_members, self._condition)
         # Initialize and update trust beliefs for team members
 
-        # for msg in self._received_messages:
-        #     print(msg)
-        #
-        # for msg in self._custom_messages:
-        #     print(msg)
-        #
-        # print()
         trustBeliefs = self._loadBelief(self._team_members, self._folder)
         self._trustBelief(self._team_members, trustBeliefs, self._folder, self._received_messages)
 
@@ -136,7 +129,8 @@ class BaselineAgent(ArtificialBrain):
         if self._previous_score != state['rescuebot']['score']:
             if current_score - self._previous_score == 6:
                 self._custom_messages.append("Update rescue competence 0.1")
-                self._previous_score = current_score
+            self._previous_score = current_score
+
 
         # Check whether human is close in distance
         if state[{'is_human_agent': True}]:
