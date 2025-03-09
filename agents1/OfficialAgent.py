@@ -1,3 +1,4 @@
+import os
 import sys, random, enum, ast, time, csv
 import numpy as np
 from matrx import grid_world
@@ -14,6 +15,7 @@ from matrx.actions.move_actions import MoveNorth
 from matrx.messages.message import Message
 from matrx.messages.message_manager import MessageManager
 from actions1.CustomActions import RemoveObjectTogether, CarryObjectTogether, DropObjectTogether, CarryObject, Drop
+from loggers.OutputLogger import output_logger
 
 
 class Phase(enum.Enum):
@@ -310,6 +312,8 @@ class BaselineAgent(ArtificialBrain):
                     self._send_messages = []
                     self.received_messages = []
                     self.received_messages_content = []
+                    self._custom_messages = []
+                    self.writeToFile()
                     self._send_message('Going to re-search all areas.', 'RescueBot')
                     self._phase = Phase.FIND_NEXT_GOAL
                 # If there are still areas to search, define which one to search next
@@ -1428,3 +1432,7 @@ class BaselineAgent(ArtificialBrain):
             else:
                 locs.append((x[i], max(y)))
         return locs
+
+    def writeToFile(self):
+        fld = os.getcwd()
+        output_logger(fld)
