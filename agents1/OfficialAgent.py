@@ -790,8 +790,8 @@ class BaselineAgent(ArtificialBrain):
                 if self._goal_vic in self._found_victims and self._goal_vic not in self._room_vics and \
                         self._found_victim_logs[self._goal_vic]['room'] == self._door['room_name']:
                     #Human lied about finding a victim
-                    self._custom_messages.append("Update search competence -0.05")
-                    self._custom_messages.append("Update search willingness -0.05")
+                    self._custom_messages.append("Update search competence -0.2")
+                    self._custom_messages.append("Update search willingness -0.1")
                     self._send_message(self._goal_vic + ' not present in ' + str(self._door[
                                                                                     'room_name']) + ' because I searched the whole area without finding ' + self._goal_vic + '.',
                                       'RescueBot')
