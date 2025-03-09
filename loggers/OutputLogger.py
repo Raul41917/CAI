@@ -69,7 +69,7 @@ def output_logger(fld):
         csv_writer = csv.writer(csv_file, delimiter=';', quotechar='"', quoting=csv.QUOTE_MINIMAL)
         csv_writer.writerow(['completeness','score','no_ticks','agent_actions','human_actions'])
         csv_writer.writerow([completeness,score,no_ticks,len(unique_agent_actions),len(unique_human_actions)])
-    with open(fld + '/beliefs/allTrustBeliefs.csv', mode='a+') as csv_file:
+    with open(fld + '/beliefs/allTrustBeliefs.csv', newline='',mode='a+') as csv_file:
         csv_writer = csv.writer(csv_file, delimiter=';', quotechar='"', quoting=csv.QUOTE_MINIMAL)
         for i in range(len(name)):
             csv_writer.writerow([name[i], competence[i], willingness[i], task[i]])
