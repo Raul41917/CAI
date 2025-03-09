@@ -468,7 +468,7 @@ class BaselineAgent(ArtificialBrain):
                 objects = []
                 # Update remove competence of human if they said that the area was already searched
                 if not self._waiting and self._door['room_name'] in self._accessible_rooms:
-                         self._custom_messages.append("Update search competence -0.05")
+                         self._custom_messages.append("Update search competence -0.15")
 
                 agent_location = state[self.agent_id]['location']
                 # Identify which obstacle is blocking the entrance
@@ -1111,7 +1111,7 @@ class BaselineAgent(ArtificialBrain):
                         self._found_victim_logs[foundVic] = {'room': loc}
                     if foundVic in self._found_victims and self._found_victim_logs[foundVic]['room'] != loc:
                         # Victom supposedly found somehwere else already
-                        self._custom_messages.append("Update search competence -0.05")
+                        self._custom_messages.append("Update search competence -0.1")
                         self._found_victim_logs[foundVic] = {'room': loc}
                     # Decide to help the human carry a found victim when the human's condition is 'weak'
                     if condition == 'weak':
