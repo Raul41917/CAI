@@ -304,7 +304,7 @@ class BaselineAgent(ArtificialBrain):
                 # If all areas have been searched but the task is not finished, start searching areas again
                 if self._remainingZones and len(unsearched_rooms) == 0:
                     # Remove search willings and competence since the rooms were in theory searched by the human agent
-                    self._custom_messages.append("Update search willingness -0.2")
+                    self._custom_messages.append("Update search willingness -0.15")
 
                     ##TODO maybe we can talk about this - perhaps only willingness should be decremented. Arg: it means that the human lied, not that is necessarily incapable
                     self._custom_messages.append("Update search competence -0.1")
@@ -474,7 +474,7 @@ class BaselineAgent(ArtificialBrain):
                 #print(self._waiting_since, remove_willingness_boolean)
                 #stop waiting for human with random check after x seconds of waiting
                 if self._waiting_since is not None and not remove_willingness_boolean and (self._tick - self._waiting_since) > self._max_wait and (self._tick - self._waiting_since) % 25 == 0:
-                    self._custom_messages.append("Update remove willingness -0.1")
+                    self._custom_messages.append("Update remove willingness -0.05")
                     self._answered = False
                     self._waiting_since = None
                     self._remove = False
@@ -621,7 +621,7 @@ class BaselineAgent(ArtificialBrain):
                             -1] == 'Remove alone' and not self._remove:
                             self._called_remove = False
                             if self._distance_human == 'close':
-                                    self._custom_messages.append("Update remove willingness -0.1")
+                                    self._custom_messages.append("Update remove willingness -0.05")
                             self._answered = True
                             self._waiting = False
                             self._remove_together = False
@@ -640,7 +640,7 @@ class BaselineAgent(ArtificialBrain):
                                 if self._distance_human == 'close':
                                     self._custom_messages.append("Update remove willingness 0.05")
                                 else:
-                                    self._custom_messages.append("Update remove willingness 0.3")
+                                    self._custom_messages.append("Update remove willingness 0.1")
                                 self._answered = True
 
                             # Tell the human to come over and be idle untill human arrives
@@ -661,7 +661,7 @@ class BaselineAgent(ArtificialBrain):
                 if len(objects) == 0:
                     if self._remove_together:
                         # Update competence when removed together object
-                        self._custom_messages.append("Update remove competence  0.1")
+                        self._custom_messages.append("Update remove competence 0.05")
 
                     self._accessible_rooms.append(self._door['room_name'].split()[-1])
                     self._answered = False
@@ -745,7 +745,7 @@ class BaselineAgent(ArtificialBrain):
                                         'room_name'] + ' because you told me ' + vic + ' was located here.',
                                                       'RescueBot')
                                     # Human reported good victom find
-                                    self._custom_messages.append("Update search competence 0.15")
+                                    self._custom_messages.append("Update search competence 0.1")
                                     # Add the area to the list with searched areas
                                     if self._door['room_name'] not in self._searched_rooms:
                                         self._searched_rooms.append(self._door['room_name'])
@@ -788,8 +788,8 @@ class BaselineAgent(ArtificialBrain):
                 if self._goal_vic in self._found_victims and self._goal_vic not in self._room_vics and \
                         self._found_victim_logs[self._goal_vic]['room'] == self._door['room_name']:
                     #Human lied about finding a victim
-                    self._custom_messages.append("Update search competence -0.1")
-                    self._custom_messages.append("Update search willingness -0.1")
+                    self._custom_messages.append("Update search competence -0.05")
+                    self._custom_messages.append("Update search willingness -0.05")
                     self._send_message(self._goal_vic + ' not present in ' + str(self._door[
                                                                                     'room_name']) + ' because I searched the whole area without finding ' + self._goal_vic + '.',
                                       'RescueBot')
@@ -809,7 +809,7 @@ class BaselineAgent(ArtificialBrain):
                 # Stop waiting if answered and not trust human
                 #stop waiting for human with random check after x seconds of waiting
                 if self._waiting_since is not None and not rescue_willingness_boolean and (self._tick - self._waiting_since) > self._max_wait and (self._tick - self._waiting_since) % 25 == 0:
-                    self._custom_messages.append("Update rescue willingness -0.1")
+                    self._custom_messages.append("Update rescue willingness -0.05")
                     self._answered = False
                     self._remove_together = False
                     self._waiting = False
@@ -835,7 +835,7 @@ class BaselineAgent(ArtificialBrain):
                     -1] == 'Rescue' and 'critical' in self._recent_vic:
                     # Human is rescuing a critical victim
                     if self._rescue == None or self._rescue == False:
-                        self._custom_messages.append("Update rescue willingness 0.1")
+                        self._custom_messages.append("Update rescue willingness 0.05")
                     self._rescue = 'together'
                     self._answered = True
                     self._waiting_since = self._tick
@@ -859,7 +859,7 @@ class BaselineAgent(ArtificialBrain):
                     -1] == 'Rescue together' and 'mild' in self._recent_vic:
                      # Human is rescuing a critical victim
                     if self._rescue == None or self._rescue == False:
-                        self._custom_messages.append("Update rescue willingness 0.1")
+                        self._custom_messages.append("Update rescue willingness 0.05")
                     self._rescue = 'together'
                     self._answered = True
                     self._waiting_since = self._tick
@@ -882,10 +882,10 @@ class BaselineAgent(ArtificialBrain):
                     -1] == 'Rescue alone' and 'mild' in self._recent_vic:
                      # Human was clode but decided not to help
                     if self._distance_human == 'close':
-                            self._custom_messages.append("Update rescue willingness -0.1")
+                            self._custom_messages.append("Update rescue willingness -0.05")
 
                     # Cancel out with always awarding points for victim rescued
-                    self._custom_messages.append("Update rescue competence -0.1")
+                    self._custom_messages.append("Update rescue competence -0.05")
                     self._send_message('Picking up ' + self._recent_vic + ' in ' + self._door['room_name'] + '.',
                                       'RescueBot')
                     self._rescue = 'alone'
@@ -897,7 +897,7 @@ class BaselineAgent(ArtificialBrain):
                     self._phase = Phase.PLAN_PATH_TO_VICTIM
                 # Continue searching other areas if the human decides so
                 if self.received_messages_content and self.received_messages_content[-1] == 'Continue':
-                    self._custom_messages.append("Update rescue willingness -0.1")
+                    self._custom_messages.append("Update rescue willingness -0.05")
                     self._answered = True
                     self._waiting = False
                     self._todo.append(self._recent_vic)
@@ -1017,7 +1017,7 @@ class BaselineAgent(ArtificialBrain):
                 self._phase = Phase.FIND_NEXT_GOAL
                 # Award rescue competence and willigness if rescue completed
                 if self._rescue == 'together':
-                     self._custom_messages.append("Update rescue willingness 0.1")
+                     self._custom_messages.append("Update rescue willingness 0.05")
                 self._rescue = None
                 self._current_door = None
                 self._victims_saved_for_sure.append(self._goal_vic)
