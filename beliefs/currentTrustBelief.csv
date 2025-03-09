@@ -1,4 +1,11 @@
+<<<<<<< Updated upstream
 name;competence;willingness;action
 Ben;-1.0;0.2249999999999998;search
 Ben;1.0;0.020000000000000198;rescue
 Ben;1.0;1.0;remove
+=======
+name;competence;willingness;action
+charlie;-1;-1;search
+charlie;-1;-1;rescue
+charlie;-1;-1;remove
+>>>>>>> Stashed changes
