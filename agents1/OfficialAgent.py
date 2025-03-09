@@ -484,8 +484,8 @@ class BaselineAgent(ArtificialBrain):
                         if 'class_inheritance' in info and 'ObstacleObject' in info['class_inheritance'] and ('stone' in \
                                 info['obj_id'] or 'tree' in info['obj_id']):
                             
-                            obstacles = 'stones' if 'stone' in info['obj_id'] else 'tree'
-                            self._send_message('Removing stones blocking ' + str(self._door['room_name']) + '.',
+                            obstacle = 'stones' if 'stone' in info['obj_id'] else 'tree'
+                            self._send_message(f'Removing {obstacle} blocking ' + str(self._door['room_name']) + '.',
                                             'RescueBot')
                             self._phase = Phase.ENTER_ROOM
                             return RemoveObject.__name__, {'object_id': info['obj_id']}
@@ -633,7 +633,7 @@ class BaselineAgent(ArtificialBrain):
                             -1] == 'Remove together' or self._remove:
                             # Depending on distance more willingness if given
                             self._waiting_since = self._tick
-                            
+                            self._answered = True
                             if not self._remove:
                                 if self._distance_human == 'close':
                                     self._custom_messages.append("Update remove willingness 0.05")
@@ -807,6 +807,7 @@ class BaselineAgent(ArtificialBrain):
                 # Stop waiting if answered and not trust human
                 #stop waiting for human with random check after x seconds of waiting
                 if self._waiting_since is not None and not rescue_willingness_boolean and (self._tick - self._waiting_since) > self._max_wait and (self._tick - self._waiting_since) % 25 == 0:
+                    print("got bored here")
                     self._custom_messages.append("Update rescue willingness -0.05")
                     self._answered = False
                     self._remove_together = False
@@ -823,9 +824,11 @@ class BaselineAgent(ArtificialBrain):
                         self._recent_vic = None
                         self._phase = Phase.PLAN_PATH_TO_VICTIM
                     else:
+                        self._todo.append(self._recent_vic)
                         self._to_search.append(self._door['room_name'])
                         self._phase = Phase.FIND_NEXT_GOAL
                         self._rescue = False
+                        self._recent_vic = None
 
                     return None, {}
                 # Make a plan to rescue a found critically injured victim if the human decides so
@@ -882,8 +885,6 @@ class BaselineAgent(ArtificialBrain):
                     if self._distance_human == 'close':
                             self._custom_messages.append("Update rescue willingness -0.05")
 
-                    # Cancel out with always awarding points for victim rescued
-                    self._custom_messages.append("Update rescue competence -0.05")
                     self._send_message('Picking up ' + self._recent_vic + ' in ' + self._door['room_name'] + '.',
                                       'RescueBot')
                     self._rescue = 'alone'
@@ -958,16 +959,34 @@ class BaselineAgent(ArtificialBrain):
                         'class_inheritance'] and 'mild' in info['obj_id'] and info['location'] in self._roomtiles:
                         objects.append(info)
                         # Remain idle when the human has not arrived at the location (++ and the willingness of the human is high)
-                        if not self._human_name in info['name'] and (rescue_willingness_boolean or not (self._tick - self._waiting_since) > self._max_wait) and (self._tick - self._waiting_since) % 25 == 0:
+                        if not self._human_name in info['name'] and (rescue_willingness_boolean or not (self._tick - self._waiting_since) > self._max_wait or (self._tick - self._waiting_since) % 25 != 0):
+                            print("still waiting")
+                            print(rescue_willingness_boolean, (self._tick - self._waiting_since))
                             self._waiting = True
                             self._moving = False
                             return None, {}
-                        else:
-                            self._waiting = False
-                            self._waiting_since = None
+                        elif not self._human_name in info['name']:
+                            print("got bored later")
+                            self._custom_messages.append("Update rescue willingness -0.05")
                             self._answered = False
-                            self._moving = True 
-                            self._phase = Phase.FIND_NEXT_GOAL
+                            self._remove_together = False
+                            self._waiting = False
+                            self._moving = True
+                            self._waiting_since = None
+                            # If mild carry alone
+                            if 'mild' in self._goal_vic:
+                                self._send_message('Picking up ' + self._goal_vic + ' in ' + self._door['room_name'] + '.',
+                                            'RescueBot')
+                                self._rescue = 'alone'
+                                self._goal_loc = self._remaining[self._goal_vic]
+                                self._recent_vic = None
+                                self._phase = Phase.PLAN_PATH_TO_VICTIM
+                            else:
+                                self._todo.append(self._goal_vic)
+                                self._to_search.append(self._door['room_name'])
+                                self._phase = Phase.FIND_NEXT_GOAL
+                                self._rescue = False
+                                self._recent_vic = None
                             return None, {}
                 # Add the victim to the list of rescued victims when it has been picked up
                 if len(objects) == 0 and 'critical' in self._goal_vic or len(
@@ -1140,6 +1159,7 @@ class BaselineAgent(ArtificialBrain):
                         if self._waiting and self._recent_vic:
                             self._todo.append(self._recent_vic)
                         self._waiting = False
+                        self._answered = False
                         # Let the human know that the agent is coming over to help
                         self._send_message(
                             'Moving to ' + str(self._door['room_name']) + ' to help you remove an obstacle.',
