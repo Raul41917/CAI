@@ -814,7 +814,7 @@ class BaselineAgent(ArtificialBrain):
                     self._searched_rooms_robot.append(self._door['room_name'])
                 # Stop waiting if answered and not trust human
                 #stop waiting for human with random check after x seconds of waiting
-                if self._waiting_since is not None and not rescue_willingness_boolean and (self._tick - self._waiting_since) > self._max_wait and (self._tick - self._waiting_since) % 25 == 0:
+                if self._recent_vic is not None and self._waiting_since is not None and not rescue_willingness_boolean and (self._tick - self._waiting_since) > self._max_wait and (self._tick - self._waiting_since) % 25 == 0:
                     print("got bored here")
                     self._custom_messages.append("Update rescue willingness -0.05")
                     self._answered = False
