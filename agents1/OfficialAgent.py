@@ -802,10 +802,10 @@ class BaselineAgent(ArtificialBrain):
                     self._waiting = False
                     self._rescue = False
                     # Reset received messages (bug fix)
-                    self.writeToFile()
                     self._custom_messages = []
                     self.received_messages = []
                     self.received_messages_content = []
+                    self.writeToFile()
                 # Add the area to the list of searched areas
                 if self._door['room_name'] not in self._searched_rooms:
                     self._searched_rooms.append(self._door['room_name'])
@@ -1156,10 +1156,10 @@ class BaselineAgent(ArtificialBrain):
                         if area in self._searched_rooms:
                             self._searched_rooms.remove(area)
                         # Clear received messages (bug fix)
-                        self.writeToFile()
                         self._custom_messages = []
                         self.received_messages = []
                         self.received_messages_content = []
+                        self.writeToFile()
                         self._moving = True
                         self._called_remove = True
                         self._remove = True
