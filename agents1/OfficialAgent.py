@@ -78,6 +78,7 @@ class BaselineAgent(ArtificialBrain):
         self._rescue = None
         self._recent_vic = None
         self._received_messages = []
+        self._custom_messages = []
         self._moving = False
         self._victims_saved_for_sure = []
         self._random_nr = np.random.rand()
@@ -95,15 +96,6 @@ class BaselineAgent(ArtificialBrain):
         # Filtering of the world state before deciding on an action 
         return state
 
-    # def human_allegedly_found_the_victim(self, received_messages, victim):
-    #     for msg in received_messages:
-    #         if "Found" in msg:
-    #             split_msg = msg.split()
-    #             victim_in_msg = " ".join(split_msg[1:-2])
-    #             if victim == victim_in_msg:
-    #                 return split_msg[-1]
-    #     return -1
-
     def decide_on_actions(self, state):
         self._tick = state['World']['nr_ticks']
         # Identify team members
@@ -111,7 +103,12 @@ class BaselineAgent(ArtificialBrain):
         for member in state['World']['team_members']:
             if member != agent_name and member not in self._team_members:
                 self._team_members.append(member)
-       
+
+        self._received_messages = []
+        for mssg in self.received_messages:
+            for member in self._team_members:
+                if mssg.from_id == member:
+                    self._received_messages.append(mssg.content)
         # Some workaround to ensure that the random number generator remains consistent
         # across subsequent game ticks
         # The variable gets a new value when a new message was received
@@ -119,6 +116,11 @@ class BaselineAgent(ArtificialBrain):
         # Process messages from team members
         self._process_messages(state, self._team_members, self._condition)
         # Initialize and update trust beliefs for team members
+
+        for msg in self._received_messages:
+            print(msg)
+        print()
+
         trustBeliefs = self._loadBelief(self._team_members, self._folder)
         self._trustBelief(self._team_members, trustBeliefs, self._folder, self._received_messages)
 
@@ -130,7 +132,7 @@ class BaselineAgent(ArtificialBrain):
         current_score = state['rescuebot']['score']
         if self._previous_score != state['rescuebot']['score']:
             if current_score - self._previous_score > 0:
-                self._received_messages.append("Update rescue competence 0.1")
+                self._custom_messages.append("Update rescue competence 0.1")
                 self._previous_score = current_score
 
         # Check whether human is close in distance
@@ -299,14 +301,12 @@ class BaselineAgent(ArtificialBrain):
                 # If all areas have been searched but the task is not finished, start searching areas again
                 if self._remainingZones and len(unsearched_rooms) == 0:
                     # Remove search willings and competence since the rooms were in theory searched by the human agent
-                    self._received_messages.append("Update search willingness -0.2")
+                    self._custom_messages.append("Update search willingness -0.2")
 
                     ##TODO maybe we can talk about this - perhaps only willingness should be decremented. Arg: it means that the human lied, not that is necessarily incapable
-                    self._received_messages.append("Update search competence -0.2")
+                    self._custom_messages.append("Update search competence -0.2")
 
-                    # Technically you don't need to call it again cause any remaining branch will not be executed and the next tick
                     # Will store make use of the messages
-                    self._trustBelief(self._team_members, trustBeliefs, self._folder, self._received_messages)
                     self._to_search = []
                     self._searched_rooms = []
                     self._searched_rooms_robot = []
@@ -463,7 +463,7 @@ class BaselineAgent(ArtificialBrain):
                 objects = []
                 # Update remove competence of human if they said that the area was already searched
                 if not self._waiting and self._door['room_name'] in self._accessible_rooms:
-                         self._received_messages.append("Update search competence -0.2")
+                         self._custom_messages.append("Update search competence -0.2")
 
                 agent_location = state[self.agent_id]['location']
                 # Identify which obstacle is blocking the entrance
@@ -471,7 +471,7 @@ class BaselineAgent(ArtificialBrain):
                 #print(self._waiting_since, remove_willingness_boolean)
                 #stop waiting for human with random check after x seconds of waiting
                 if self._waiting_since is not None and not remove_willingness_boolean and (self._tick - self._waiting_since) > self._max_wait and (self._tick - self._waiting_since) % 25 == 0:
-                    self._received_messages.append("Update remove willingness -0.1")
+                    self._custom_messages.append("Update remove willingness -0.1")
                     self._answered = False
                     self._waiting_since = None
                     self._remove = False
@@ -524,7 +524,7 @@ class BaselineAgent(ArtificialBrain):
                             self._waiting_since = self._tick
                             self._remove_together = True
                             if not self._remove:
-                                self._received_messages.append("Update remove willingness 0.05")
+                                self._custom_messages.append("Update remove willingness 0.05")
                                 self._answered = True
                             # Tell the human to come over and be idle untill human arrives
                             if not state[{'is_human_agent': True}]:
@@ -588,7 +588,7 @@ class BaselineAgent(ArtificialBrain):
                             info['obj_id']:
                         # Human asked for help removing simple stome
                         if self._called_remove:
-                            self._received_messages.append("Update remove competence -0.05")
+                            self._custom_messages.append("Update remove competence -0.05")
                         self._called_remove = False
                         objects.append(info)
                         # Communicate which obstacle is blocking the entrance
@@ -618,7 +618,7 @@ class BaselineAgent(ArtificialBrain):
                             -1] == 'Remove alone' and not self._remove:
                             self._called_remove = False
                             if self._distance_human == 'close':
-                                    self._received_messages.append("Update remove willingness -0.1")
+                                    self._custom_messages.append("Update remove willingness -0.1")
                             self._answered = True
                             self._waiting = False
                             self._remove_together = False
@@ -635,9 +635,9 @@ class BaselineAgent(ArtificialBrain):
                             
                             if not self._remove:
                                 if self._distance_human == 'close':
-                                    self._received_messages.append("Update remove willingness 0.05")
+                                    self._custom_messages.append("Update remove willingness 0.05")
                                 else:
-                                    self._received_messages.append("Update remove willingness 0.3")
+                                    self._custom_messages.append("Update remove willingness 0.3")
                                 self._answered = True
 
                             # Tell the human to come over and be idle untill human arrives
@@ -658,7 +658,7 @@ class BaselineAgent(ArtificialBrain):
                 if len(objects) == 0:
                     if self._remove_together:
                         # Update competence when removed together object
-                        self._received_messages.append("Update remove competence  0.1")
+                        self._custom_messages.append("Update remove competence  0.1")
 
                     self._accessible_rooms.append(self._door['room_name'].split()[-1])
                     self._answered = False
@@ -742,7 +742,7 @@ class BaselineAgent(ArtificialBrain):
                                         'room_name'] + ' because you told me ' + vic + ' was located here.',
                                                       'RescueBot')
                                     # Human reported good victom find
-                                    self._received_messages.append("Update search competence 0.15")
+                                    self._custom_messages.append("Update search competence 0.15")
                                     # Add the area to the list with searched areas
                                     if self._door['room_name'] not in self._searched_rooms:
                                         self._searched_rooms.append(self._door['room_name'])
@@ -785,8 +785,8 @@ class BaselineAgent(ArtificialBrain):
                 if self._goal_vic in self._found_victims and self._goal_vic not in self._room_vics and \
                         self._found_victim_logs[self._goal_vic]['room'] == self._door['room_name']:
                     #Human lied about finding a victim
-                    self._received_messages.append("Update search competence -0.1")
-                    self.received_messages.append("Update search willingness -0.1")
+                    self._custom_messages.append("Update search competence -0.1")
+                    self._custom_messages.append("Update search willingness -0.1")
                     self._send_message(self._goal_vic + ' not present in ' + str(self._door[
                                                                                     'room_name']) + ' because I searched the whole area without finding ' + self._goal_vic + '.',
                                       'RescueBot')
@@ -806,7 +806,7 @@ class BaselineAgent(ArtificialBrain):
                 # Stop waiting if answered and not trust human
                 #stop waiting for human with random check after x seconds of waiting
                 if self._waiting_since is not None and not rescue_willingness_boolean and (self._tick - self._waiting_since) > self._max_wait and (self._tick - self._waiting_since) % 25 == 0:
-                    self._received_messages.append("Update rescue willingness -0.1")
+                    self._custom_messages.append("Update rescue willingness -0.1")
                     self._answered = False
                     self._remove_together = False
                     self._waiting = False
@@ -832,7 +832,7 @@ class BaselineAgent(ArtificialBrain):
                     -1] == 'Rescue' and 'critical' in self._recent_vic:
                     # Human is rescuing a critical victim
                     if self._rescue == None or self._rescue == False:
-                        self._received_messages.append("Update rescue willingness 0.1")
+                        self._custom_messages.append("Update rescue willingness 0.1")
                     self._rescue = 'together'
                     self._answered = True
                     self._waiting_since = self._tick
@@ -856,7 +856,7 @@ class BaselineAgent(ArtificialBrain):
                     -1] == 'Rescue together' and 'mild' in self._recent_vic:
                      # Human is rescuing a critical victim
                     if self._rescue == None or self._rescue == False:
-                        self._received_messages.append("Update rescue willingness 0.1")
+                        self._custom_messages.append("Update rescue willingness 0.1")
                     self._rescue = 'together'
                     self._answered = True
                     self._waiting_since = self._tick
@@ -879,10 +879,10 @@ class BaselineAgent(ArtificialBrain):
                     -1] == 'Rescue alone' and 'mild' in self._recent_vic:
                      # Human was clode but decided not to help
                     if self._distance_human == 'close':
-                                self._received_messages.append("Update rescue willingness -0.1")
+                                self._custom_messages.append("Update rescue willingness -0.1")
 
                     # Cancel out with always awarding points for victim rescued
-                    self._received_messages.append("Update rescue competence -0.1")
+                    self._custom_messages.append("Update rescue competence -0.1")
                     self._send_message('Picking up ' + self._recent_vic + ' in ' + self._door['room_name'] + '.',
                                       'RescueBot')
                     self._rescue = 'alone'
@@ -894,7 +894,7 @@ class BaselineAgent(ArtificialBrain):
                     self._phase = Phase.PLAN_PATH_TO_VICTIM
                 # Continue searching other areas if the human decides so
                 if self.received_messages_content and self.received_messages_content[-1] == 'Continue':
-                    self._received_messages.append("Update rescue willingness -0.1")
+                    self._custom_messages.append("Update rescue willingness -0.1")
                     self._answered = True
                     self._waiting = False
                     self._todo.append(self._recent_vic)
@@ -1014,7 +1014,7 @@ class BaselineAgent(ArtificialBrain):
                 self._phase = Phase.FIND_NEXT_GOAL
                 # Award rescue competence and willigness if rescue completed
                 if self._rescue == 'together':
-                     self._received_messages.append("Update rescue willingness 0.1")
+                     self._custom_messages.append("Update rescue willingness 0.1")
                 self._rescue = None
                 self._current_door = None
                 self._victims_saved_for_sure.append(self._goal_vic)
@@ -1085,7 +1085,7 @@ class BaselineAgent(ArtificialBrain):
                         self._found_victim_logs[foundVic] = {'room': loc}
                     if foundVic in self._found_victims and self._found_victim_logs[foundVic]['room'] != loc:
                         # Victom supposedly found somehwere else already
-                        self._received_messages.append("Update search competence -0.2")
+                        # self._received_messages.append("Update search competence -0.2")
                         self._found_victim_logs[foundVic] = {'room': loc}
                     # Decide to help the human carry a found victim when the human's condition is 'weak'
                     if condition == 'weak':
@@ -1123,8 +1123,9 @@ class BaselineAgent(ArtificialBrain):
                         # Identify at which location the human needs help
                         area = 'area ' + msg.split()[-1]
                         if msg.split()[-1] in self._accessible_rooms:
+                            pass
                             # Human did not remove the object when initially searched the room
-                            self._received_messages.append("Update remove competence  -0.1")
+                            # self._received_messages.append("Update remove competence  -0.1")
                         self._door = state.get_room_doors(area)[0]
                         self._doormat = state.get_room(area)[-1]['doormat']
                         if area in self._searched_rooms:
@@ -1192,7 +1193,7 @@ class BaselineAgent(ArtificialBrain):
         known_actions = {'rescue','search','remove'}
         for action in known_actions:
             if action not in trustBeliefs[self._human_name]:
-                trustBeliefs[self._human_name][action] = {'competence': default, 'willingness': 0}
+                trustBeliefs[self._human_name][action] = {'competence': default, 'willingness': default}
         return trustBeliefs
 
     def _trustBelief(self, members, trustBeliefs, folder, receivedMessages):
@@ -1225,11 +1226,7 @@ class BaselineAgent(ArtificialBrain):
         remove = 'remove'
 
         for message in receivedMessages:
-            if 'Update' in message:
-                splits = message.split()
-                trustBeliefs[self._human_name][splits[1]][splits[2]] += float(splits[3])
-
-            elif 'Rescue' in message:
+            if 'Rescue' in message:
                 # If the human agent instructs the robot to rescue the victim with her/his help
                 if message == 'Rescue alone':
                     index_eta = 0 if willing else min(3, index_eta + 1)
@@ -1337,19 +1334,39 @@ class BaselineAgent(ArtificialBrain):
                     # the intent of searching this specific area before exploring it
                     trustBeliefs[self._human_name][search]['willingness'] += 0.05
 
-
-        trustBeliefs[self._human_name][rescue]['competence'] = np.clip(trustBeliefs[self._human_name][rescue]['competence'], -1,
-                                                                    1)
-        trustBeliefs[self._human_name][rescue]['willingness'] = np.clip(trustBeliefs[self._human_name][rescue]['willingness'], -1,
-                                                                    1)
-        trustBeliefs[self._human_name][search]['competence'] = np.clip(trustBeliefs[self._human_name][search]['competence'], -1,
-                                                                       1)
-        trustBeliefs[self._human_name][search]['willingness'] = np.clip(trustBeliefs[self._human_name][search]['willingness'], -1,
-                                                                       1)
-        trustBeliefs[self._human_name][remove]['competence'] = np.clip(trustBeliefs[self._human_name][remove]['competence'], -1,
-                                                                       1)
-        trustBeliefs[self._human_name][remove]['willingness'] = np.clip(trustBeliefs[self._human_name][remove]['willingness'], -1,
-                                                                       1)
+            trustBeliefs[self._human_name][rescue]['competence'] = np.clip(trustBeliefs[self._human_name][rescue]['competence'], -1,
+                                                                           1)
+            trustBeliefs[self._human_name][rescue]['willingness'] = np.clip(trustBeliefs[self._human_name][rescue]['willingness'], -1,
+                                                                            1)
+            trustBeliefs[self._human_name][search]['competence'] = np.clip(trustBeliefs[self._human_name][search]['competence'], -1,
+                                                                           1)
+            trustBeliefs[self._human_name][search]['willingness'] = np.clip(trustBeliefs[self._human_name][search]['willingness'], -1,
+                                                                            1)
+            trustBeliefs[self._human_name][remove]['competence'] = np.clip(trustBeliefs[self._human_name][remove]['competence'], -1,
+                                                                           1)
+            trustBeliefs[self._human_name][remove]['willingness'] = np.clip(trustBeliefs[self._human_name][remove]['willingness'], -1,
+                                                                            1)
+        for msg in self._custom_messages:
+            splits = msg.split()
+            trustBeliefs[self._human_name][splits[1]][splits[2]] += float(splits[3])
+            trustBeliefs[self._human_name][rescue]['competence'] = np.clip(
+                trustBeliefs[self._human_name][rescue]['competence'], -1,
+                1)
+            trustBeliefs[self._human_name][rescue]['willingness'] = np.clip(
+                trustBeliefs[self._human_name][rescue]['willingness'], -1,
+                1)
+            trustBeliefs[self._human_name][search]['competence'] = np.clip(
+                trustBeliefs[self._human_name][search]['competence'], -1,
+                1)
+            trustBeliefs[self._human_name][search]['willingness'] = np.clip(
+                trustBeliefs[self._human_name][search]['willingness'], -1,
+                1)
+            trustBeliefs[self._human_name][remove]['competence'] = np.clip(
+                trustBeliefs[self._human_name][remove]['competence'], -1,
+                1)
+            trustBeliefs[self._human_name][remove]['willingness'] = np.clip(
+                trustBeliefs[self._human_name][remove]['willingness'], -1,
+                1)
 
 
         robot_victim_help_sent_messages = []
