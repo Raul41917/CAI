@@ -959,10 +959,10 @@ class BaselineAgent(ArtificialBrain):
                             self._moving = False
                             return None, {}
                         else:
-                            self.waiting = False
+                            self._waiting = False
                             self._waiting_since = None
                             self._answered = False
-                            self.moving = True 
+                            self._moving = True 
                             self._phase = Phase.FIND_NEXT_GOAL
                             return None, {}
                 # Add the victim to the list of rescued victims when it has been picked up
